@@ -9,7 +9,7 @@ import { cartContext } from "./App";
 
 function ProductDetail(){
 
-const { cart, setCart } = useContext(cartContext);
+const {cart,setCart}=useContext(cartContext);
 
 const {id}=useParams();
 
@@ -20,11 +20,21 @@ const {id}=useParams();
    const [wish,setWish]=useState(false);
  
   
-  
-   const handleCart = () => {
-    setCart(prevCart => [...prevCart, product]);
-   }
+const handleCart = () => {
+   const qty = quantity === 0 ? 1 : quantity;
+
+    setCart(prev => [
+        ...prev,
+        {
+            ...product,
+            quantity: qty
+        }
+    ]);
+};
+
+
    const handleQuantityPlus=()=>{
+       
         setQuantity(q=>q+1);
    }
     const handleQuantityMinus=()=>{
