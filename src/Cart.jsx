@@ -12,12 +12,26 @@ function Cart() {
          setCart(deleted);
     }
     const clearAllCart=()=>{
-       
         setCart([]);
     }
 
-    const handleCartQuantity=()=>{
-          setCart(c=>c+1);
+    const handleCartQuantityPlus=(id)=>{
+          setCart(prev =>
+            prev.map(item =>
+                item.id === id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+       )
+     );
+    }
+
+    const handleCartQuantityMinus=(id)=>{
+         setCart(c=>c.map(
+             item=>item.id===id && item.quantity>1?{
+                 ...item,
+                 quantity:item.quantity-1
+             }:item
+         ));
     }
 
     return(
@@ -84,11 +98,25 @@ function Cart() {
                     </span>
 
                 </div>
-                <div className="mr-140 bg-gray-600">
-                     <button className="w-20" onClick={handleCartQuantity}>+</button>
-                     <button className="w-20">-</button>
-                </div>
-                {/* Delete */}
+         <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden mr-100">
+
+                    <button className="w-12 h-12 text-xl hover:bg-gray-100 transition"
+                        onClick={() => handleCartQuantityMinus(p.id)}> −
+                    </button>
+
+                    <span className="w-12 text-center font-semibold">
+                        {p.quantity}
+                    </span>
+
+                    <button
+                        className="w-12 h-12 text-xl hover:bg-gray-100 transition"
+                        onClick={() => handleCartQuantityPlus(p.id)}
+                    >
+                        +
+                    </button>
+
+         </div>
+                {/* boutton dial delete*/}
 
                 
 

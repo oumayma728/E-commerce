@@ -16,10 +16,7 @@ function Navbar(){
            sum+item.quantity,
            0
       ) ;
-  
-      
-
-       return (
+    return (
         
            <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
              <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

@@ -23,14 +23,25 @@ const {id}=useParams();
 const handleCart = () => {
    const qty = quantity === 0 ? 1 : quantity;
 
-    setCart(prev => [
-        ...prev,
-        {
-            ...product,
-            quantity: qty
-        }
+   const exists=cart.find(item=>item.id===product.id);
+   if(!exists){
+      setCart(c=>[...c,{
+          ...product,
+          quantity:qty
+      }
     ]);
-};
+   }
+   else{
+     setCart(p=>p.map(item=>
+         item.id===product.id?{
+             ...item,
+             quantity:item.quantity+qty
+
+         }:item
+     ))
+   };
+}
+ 
 
 
    const handleQuantityPlus=()=>{
@@ -287,4 +298,5 @@ if(!product){
          
      );
 }
+
 export default ProductDetail;
