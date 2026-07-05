@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 
 import { useContext, useEffect,useState } from "react";
-import { cartContext } from "./App";
+import { cartContext, wishContext } from "./App";
+import { Heart } from "lucide-react";
 
 
 
@@ -9,13 +10,19 @@ import { cartContext } from "./App";
 function Navbar(){
   
      const {cart}=useContext(cartContext);
+     const {wishList}=useContext(wishContext);
+
      const [quantity,setQuantity]=useState(0);
-      
+     const [wishQuantity,setWishQuantity]=useState(0);
      
       const totalQuantity=cart.reduce((sum,item)=>
            sum+item.quantity,
            0
-      ) ;
+      );
+
+      const totalQuantityWish=wishList.reduce((sum,item)=>sum+item.quantity,0);
+
+
     return (
         
            <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
@@ -36,6 +43,10 @@ function Navbar(){
                        <button className="text-sm bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors shadow-sm">Cart:{totalQuantity}</button>
 
                   </Link> 
+
+                  <Link to="/wishlist">
+                        <button ><Heart></Heart>:{totalQuantityWish}</button>
+                  </Link>
               </div>
             </div>
            </nav>

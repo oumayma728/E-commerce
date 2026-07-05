@@ -3,13 +3,14 @@ import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import {ShoppingCart, Heart, ChevronLeft, Star, CheckCircle2, AlertTriangle, Sparkles} from "lucide-react";
 import { cartContext } from "./App";
-
+import { wishContext } from "./App";
 
 
 
 function ProductDetail(){
 
 const {cart,setCart}=useContext(cartContext);
+const {wishList,setWishList}=useContext(wishContext);
 
 const {id}=useParams();
 
@@ -19,6 +20,25 @@ const {id}=useParams();
    const [reviews,setReviews]=useState([]);
    const [wish,setWish]=useState(false);
  
+
+
+
+const handleWish = () => {
+     const qty=quantity===0?1:quantity;
+     const exists=wishList.find(item=>item.id===product.id);
+        
+     if(!exists){
+          setWishList(p=>[...p,{
+         ...product,quantity:qty
+       }])
+     }
+     else{
+         setWishList(p=>p.map(item=>item.id===product.id?{ 
+             ...item,quantiy:qty+1
+         }:item
+        ))
+     } 
+};
   
 const handleCart = () => {
    const qty = quantity === 0 ? 1 : quantity;
@@ -55,9 +75,7 @@ const handleCart = () => {
         
    }
 
-   const handleWish = () => {
-    setWish(prev => !prev);
-};
+
 
    const handleImage=(index)=>{
       setImage(index);

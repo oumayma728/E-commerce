@@ -7,17 +7,22 @@ import ProductDetail from './ProductDetail';
 import { useState,} from 'react';
 import Cart from './Cart';
 import { createContext } from 'react';
+import WishList from './Wishlist';
 
 
 export const cartContext=createContext();
+export const wishContext=createContext();
 
 
 function App() {
 
   const [cart,setCart]=useState([]);
+  const [wishList,setWishList]=useState([]);
+
   return (
     <>
-  <cartContext.Provider value={{cart,setCart}}>
+<cartContext.Provider value={{cart,setCart}}>
+    <wishContext.Provider value={{wishList,setWishList}}>
       <Navbar/> 
       <Routes>
         <Route path="/" element={<Hero />} />
@@ -25,11 +30,12 @@ function App() {
         <Route path='/product-detail/:id' element={         
           <ProductDetail></ProductDetail>}></Route>
         <Route path='/cart' element={<Cart></Cart>}></Route>
-        
+        <Route path='/wishlist' element={<WishList></WishList>}></Route>
       </Routes>
       
       <Footer />
-    </cartContext.Provider>
+    </wishContext.Provider>
+</cartContext.Provider>
 
 
      
