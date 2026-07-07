@@ -14,6 +14,13 @@ function Products() {
     const [search,setSearch]=useState("");
     const [sort,setSort]=useState("populaire");
 
+    const [currentPage,setCurrentPage]=useState(1);
+
+    const productsPerPage=8;
+
+    const lastProduct=currentPage*productsPerPage;
+    const firstProduct=lastProduct-productsPerPage;
+
     useEffect(() => {
         async function loadProducts() {
             const response = await fetch("/api/products");
@@ -44,14 +51,43 @@ function Products() {
         setPage(1);
     };
 
-    const handleSearch=(e)=>{
-         setSearch(e.target.value);
+    const handleSearch=(e)=>{       
+      setSearch(e.target.value);      
     }
     const handleSort=(e)=>{
          setSort(e.target.value);
     }
+
+ 
    
-    
+const filteredProducts = products
+  .filter((product) => {
+    if (product.price >= priceMax) return false;
+    if (product.rating < rating) return false;
+    if (!product.name.toLowerCase().includes(search.toLowerCase()))
+      return false;
+
+    if (category === "Tout") return true;
+
+    return product.category === category;
+  })
+  .sort((a, b) => {
+    if (sort === "prixC") return a.price - b.price;
+    if (sort === "prixD") return b.price - a.price;
+    if (sort === "topR") return b.rating - a.rating;
+    return 0;
+  });
+
+const currentProducts = filteredProducts.slice(
+    firstProduct,
+    lastProduct
+);  
+
+
+const totalPages = Math.ceil(
+    filteredProducts.length / productsPerPage
+);
+
     return (
         <div className="max-w-7xl mx-auto px-4 py-8 flex gap-8">
 
@@ -184,8 +220,6 @@ function Products() {
 
 
             <div className="flex-1">
-
-
                 <div className="flex gap-4 mb-8">
 
                     <div className="relative flex-1">
@@ -224,49 +258,20 @@ function Products() {
 
                 </div>
 
-                {/* Produits */}
+                {/* filtre des produoits */}
 
+                  
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
-                    {products.filter((product)=>{
-                       
-                        
-                        if(product.price>=priceMax){
-                             return false;
-                        }
-                        
-                         if(product.rating<rating){
-                             return false;
-                        }
-                       
-                         if(!product.name.toLowerCase().includes(search.toLowerCase())){
-                            return false;
-                         }
-
-                        if(category==="Tout"){
-                             return true;
-                         }
-                         
-                        return product.category === category;
-
-                        
-
-                        
-                    }).sort((a,b)=>{
-                         if(sort==="prixC"){
-                             return a.price-b.price;
-                         }
-                         if(sort==="prixD"){
-                             return b.price-a.price;
-                         }
-                         if(sort==="topR"){
-                             return b.rating-a.rating;
-                         }
-                         return 0;
-                    })
-                    .map((product) => (
-
-                      <Link to={`/product-detail/${product.id}`} ><div
+                    {filteredProducts.length === 0 ? (
+                        <div className="col-span-full text-center py-20">
+                            <h2 className="text-3xl font-bold">🔍No products found</h2>
+                            <p className="text-gray-500 mt-2">
+                                Try changing your search or filters.
+                            </p>
+                        </div>
+                     ) : (
+                        currentProducts.map((product) => (
+                            <Link to={`/product-detail/${product.id}`} ><div
                             key={product.id}
                             className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 group cursor-pointer"
                         >
@@ -303,16 +308,40 @@ function Products() {
 
                                 </div>
 
-                            </div>
+                                    </div>
 
                         </div></Link>  
+                        
+                  ))
+           )}
 
-                    ))}
+           
+        </div>
+                       
+        <div className="flex justify-center gap-3 mt-10">
+
+                {[...Array(totalPages)].map((_, index) => (
+
+                    <button
+                        key={index}
+                        onClick={() => setCurrentPage(index + 1)}
+                        className={`w-10 h-10 rounded-lg
+                            ${
+                                currentPage === index + 1
+                                    ? "bg-indigo-600 text-white"
+                                    : "bg-gray-100"
+                            }`}
+                    >
+                        {index + 1}
+                    </button>
+
+                ))}
+
+            </div>   
 
                 </div>
             </div>
 
-        </div>
     );
 }
 

@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import {ShoppingCart, Heart, ChevronLeft, Star, CheckCircle2, AlertTriangle, Sparkles} from "lucide-react";
 import { cartContext } from "./App";
 import { wishContext } from "./App";
+import toast from "react-hot-toast";
 
 
 
@@ -18,28 +19,40 @@ const {id}=useParams();
    const [quantity,setQuantity]=useState(0);
    const [images,setImage]=useState(0);
    const [reviews,setReviews]=useState([]);
-   const [wish,setWish]=useState(false);
  
 
-
-
-const handleWish = () => {
-     const qty=quantity===0?1:quantity;
-     const exists=wishList.find(item=>item.id===product.id);
-        
-     if(!exists){
-          setWishList(p=>[...p,{
-         ...product,quantity:qty
-       }])
+const handleWish=()=>{
+     if(wished){
+         setWishList(p=>p.filter(item=>item.id!==product.id));
+         toast.error('Product removed from wish list ❌',{
+             style:{
+                    background: '#ef4444', 
+                    color: '#fff',
+                    fontWeight: '500',
+             },
+             iconTheme: {
+            primary: '#fff',
+            secondary: '#22c55e',
+             },
+         })
+         
      }
      else{
-         setWishList(p=>p.map(item=>item.id===product.id?{ 
-             ...item,quantiy:qty+1
-         }:item
-        ))
-     } 
-};
-  
+         setWishList(p=>[...p,product]);
+         toast.success('Product added to wish list ❤️',{
+             style:{
+                    background: '#22c55e', 
+                    color: '#fff',
+                    fontWeight: '500',
+             },
+             iconTheme: {
+            primary: '#fff',
+            secondary: '#22c55e',
+             },
+         })
+     }
+}
+
 const handleCart = () => {
    const qty = quantity === 0 ? 1 : quantity;
 
@@ -48,8 +61,20 @@ const handleCart = () => {
       setCart(c=>[...c,{
           ...product,
           quantity:qty
-      }
+      },
+      
     ]);
+    toast.success(`${product.name} added to cart`,{
+        style: {
+        background: '#22c55e', 
+        color: '#fff',
+        fontWeight: '500',
+        },
+        iconTheme: {
+        primary: '#fff',
+        secondary: '#22c55e',
+        },
+   });
    }
    else{
      setCart(p=>p.map(item=>
@@ -60,10 +85,19 @@ const handleCart = () => {
          }:item
      ))
    };
+   toast.success(`${product.name} added to cart`,{
+    style: {
+      background: '#22c55e', 
+      color: '#fff',
+      fontWeight: '500',
+    },
+    iconTheme: {
+      primary: '#fff',
+      secondary: '#22c55e',
+    },
+   });
 }
  
-
-
    const handleQuantityPlus=()=>{
        
         setQuantity(q=>q+1);
@@ -89,13 +123,10 @@ const handleCart = () => {
         }  
         loadProducts();
     },[])
-
-
-
-
-   
+  
 
 const product=products.find(p=>p.id===Number(id));
+const wished=wishList.some(item=>item.id===product?.id);
 const produitSimilaire = products.filter((p) => {
     return p.category === product.category && p.id !== product.id;
 });
@@ -226,9 +257,9 @@ if(!product){
                 </button>
                 <button className={`w-14 h-14 border rounded-xl flex items-center justify-center transition
                         ${
-                          wish? "bg-red-500 text-white border-red-500":"border-gray-200 hover:bg-red-500 hover:text-white"
+                          wished? "bg-red-500 text-white border-red-500":"border-gray-200 hover:bg-red-500 hover:text-white"
                      }`} onClick={handleWish}>
-                    <Heart size={18} fill={wish ? "currentColor" : "none"}/>
+                    <Heart size={18} fill={wished ? "currentColor" : "none"}/>
                 </button>
 
             </div>

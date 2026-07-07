@@ -206,5 +206,71 @@ export const products = [
               
         ]
     },
+    {
+        id: 9,
+        name: "MacBook Pro M4",
+        price: 20,
+        image: [
+                "https://picsum.photos/400/400?random=50",
+                "https://picsum.photos/400/400?random=20",
+                "https://picsum.photos/400/400?random=30",
+        ],
+        rating: 4.9,
+        trending: true,
+        category:"Sport",
+         reviews:[
+              {
+                id:8,
+                author:"Mehdi",
+                date:"7 fevrier 2026",
+                comment: "Tres bon produit je le recommande"
+              }
+              
+        ]
+    },
+    {
+        id: 10,
+        name: "MacBook Pro M4",
+        price: 20,
+        image: [
+                "https://picsum.photos/400/400?random=50",
+                "https://picsum.photos/400/400?random=20",
+                "https://picsum.photos/400/400?random=30",
+        ],
+        rating: 4.9,
+        trending: true,
+        category:"Sport",
+         reviews:[
+              {
+                id:8,
+                author:"Mehdi",
+                date:"7 fevrier 2026",
+                comment: "Tres bon produit je le recommande"
+              }
+              
+        ]
+    },
+    {
+        id: 11,
+        name: "MacBook Pro M4",
+        price: 20,
+        image: [
+                "https://picsum.photos/400/400?random=50",
+                "https://picsum.photos/400/400?random=20",
+                "https://picsum.photos/400/400?random=30",
+        ],
+        rating: 4.9,
+        trending: true,
+        category:"Sport",
+         reviews:[
+              {
+                id:8,
+                author:"Mehdi",
+                date:"7 fevrier 2026",
+                comment: "Tres bon produit je le recommande"
+              }
+              
+        ]
+    },
 ];
 

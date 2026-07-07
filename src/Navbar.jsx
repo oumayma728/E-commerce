@@ -20,14 +20,14 @@ function Navbar(){
            0
       );
 
-      const totalQuantityWish=wishList.reduce((sum,item)=>sum+item.quantity,0);
+      const totalQuantityWish=wishList.length;
 
 
     return (
         
            <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
              <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                  <h1 className="text-2xl font-extrabold tracking-tight">3lm<span className="text-indigo-600">solutions</span></h1>
+                 <Link to="/"><h1 className="text-2xl font-extrabold tracking-tight">3lm<span className="text-indigo-600">solutions</span></h1></Link>
               
 
               <div className="hidden md:flex items-center gap-8">
@@ -45,7 +45,11 @@ function Navbar(){
                   </Link> 
 
                   <Link to="/wishlist">
-                        <button ><Heart></Heart>:{totalQuantityWish}</button>
+                       <div className="flex items-center justify-between">
+                           <button><Heart></Heart></button>
+                           :{totalQuantityWish}
+                       </div>
+                        
                   </Link>
               </div>
             </div>
