@@ -1,53 +1,17 @@
 import { useContext } from "react";
-import { cartContext } from "./App";
 import { Trash, Calculator, Lock, ShieldCheck, RotateCcw, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import useCartStore from "./store/cartStore";
 
 function Cart() {
-    const { cart, setCart } = useContext(cartContext);
-
-    const deleteProduct = (id) => {
-        const deleted = cart.filter(item => item.id !== id);
-        setCart(deleted);
-        toast.error(`item removed from cart`,{
-        style: {
-                background: '#ef4444', 
-                   color: '#fff',
-                 fontWeight: '500',
-         },
-        iconTheme: {
-        primary: '#fff',
-        secondary: '#22c55e',
-        },
-        });
-  };
-
-    const clearAllCart = () => {
-        setCart([]);
-
-    };
-
-    const handleCartQuantityPlus = (id) => {
-        setCart(prev =>
-            prev.map(item =>
-                item.id === id
-                    ? { ...item, quantity: item.quantity + 1 }
-                    : item
-            )
-        );
-    };
-
-    const handleCartQuantityMinus = (id) => {
-        setCart(prev =>
-            prev.map(item =>
-                item.id === id && item.quantity > 1
-                    ? { ...item, quantity: item.quantity - 1 }
-                    : item
-            )
-        );
-    };
-
+ 
+ const cart=useCartStore(state=>state.cart);
+ const clearCart=useCartStore(state=>state.clearCart);
+ const deleteProductFromCart=useCartStore(state=>state.deleteProductFromCart);
+ const increaseQuantity=useCartStore(state=>state.increaseQuantity);
+ const decreaseQuantity=useCartStore(state=>state.decreaseQuantity);
+    
     const subtotal = cart.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
@@ -86,7 +50,7 @@ function Cart() {
                 </h1>
 
                 <button
-                    onClick={clearAllCart}
+                    onClick={clearCart}
                     className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl shadow transition"
                 >
                     <Trash size={18} />
@@ -94,10 +58,8 @@ function Cart() {
                 </button>
             </div>
 
-            {/* Main layout: cart list + order summary sidebar */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
-                {/* Cart items + subtotal banner */}
                 <div className="lg:col-span-2 space-y-6">
 
                     {cart.map((p) => (
@@ -126,11 +88,11 @@ function Cart() {
 
                                 <div className="flex items-center gap-4">
                                     <span className="text-2xl font-extrabold text-indigo-600">
-                                        {p.price} €
+                                        {p.price}€
                                     </span>
 
                                     <span className="text-yellow-500">
-                                        ⭐ {p.rating}
+                                        ⭐{p.rating}
                                     </span>
                                 </div>
                             </div>
@@ -138,7 +100,7 @@ function Cart() {
                             {/* Quantity */}
                             <div className="flex items-center justify-center border rounded-xl overflow-hidden shadow-sm">
                                 <button
-                                    onClick={() => handleCartQuantityMinus(p.id)}
+                                    onClick={() => decreaseQuantity(p.id)}
                                     className="w-12 h-12 text-xl hover:bg-gray-100 transition"
                                 >
                                     −
@@ -149,7 +111,7 @@ function Cart() {
                                 </span>
 
                                 <button
-                                    onClick={() => handleCartQuantityPlus(p.id)}
+                                    onClick={() => increaseQuantity(p.id)}
                                     className="w-12 h-12 text-xl hover:bg-gray-100 transition"
                                 >
                                     +
@@ -169,7 +131,7 @@ function Cart() {
 
                             {/* Delete */}
                             <button
-                                onClick={() => deleteProduct(p.id)}
+                                onClick={() => deleteProductFromCart(p.id)}
                                 className="w-12 h-12 rounded-xl border border-red-200 flex items-center justify-center text-red-600 hover:bg-red-600 hover:text-white transition"
                             >
                                 <Trash size={20} />
@@ -201,7 +163,7 @@ function Cart() {
                     </div>
                 </div>
 
-                {/* Order Summary sidebar */}
+                    
                 <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm sticky top-6">
                     <h2 className="text-xl font-bold mb-5">Order Summary</h2>
 
@@ -227,10 +189,12 @@ function Cart() {
                         <p className="text-2xl font-extrabold text-indigo-600">{total.toFixed(2)}€</p>
                     </div>
 
-                    <button className="w-full flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3.5 rounded-xl shadow transition">
-                        <Lock size={16} />
-                        Checkout
-                    </button>
+                    <Link to="/checkout">
+                        <button className="w-full flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold py-3.5 rounded-xl shadow transition">
+                                <Lock size={16} />
+                                Checkout
+                        </button>
+                    </Link>
 
                     <div className="grid grid-cols-3 gap-2 mt-5 pt-5 border-t border-gray-100">
                         <div className="flex flex-col items-center text-center gap-1.5">

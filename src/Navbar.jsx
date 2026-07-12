@@ -1,16 +1,17 @@
 import { Link } from "react-router-dom";
 
 import { useContext, useEffect,useState } from "react";
-import { cartContext, wishContext } from "./App";
 import { Heart } from "lucide-react";
+import useCartStore from "./store/cartStore";
 
 
 
 
 function Navbar(){
   
-     const {cart}=useContext(cartContext);
-     const {wishList}=useContext(wishContext);
+    
+     const cart=useCartStore(state=>state.cart);
+     const wishList=useCartStore(state=>state.wish);
 
      const [quantity,setQuantity]=useState(0);
      const [wishQuantity,setWishQuantity]=useState(0);

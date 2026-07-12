@@ -1,96 +1,23 @@
 import { useState,useEffect,useContext } from "react";
-import { wishContext } from "./App";
 import { Heart } from "lucide-react";
-import { cartContext } from "./App";
 import { Trash } from "lucide-react";
 import { EyeIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import useCartStore from "./store/cartStore";
 
 
 
 function WishList(){
-   const {wishList,setWishList}=useContext(wishContext);
-   const {cart,setCart}=useContext(cartContext);
 
-
-
-const deleteAllWishList=()=>{
-     setWishList([]);
-}
-
-
+const wishList=useCartStore(state=>state.wish);
+const deleteAllWishList=useCartStore(state=>state.clearWish);
+const deleteFromWishList=useCartStore(state=>state.deleteFromWishList);
+const addToCart=useCartStore(state=>state.moveToCart);
    
-const deleteFromWishList=(id)=>{
-        const deleted=wishList.filter(p=>p.id!==id);
-        setWishList(deleted);
-        toast.error(`Product removed from Wish list`,{
-            style: {
-                    background: '#ef4444', 
-                    color: '#fff',
-                    fontWeight: '500',
-            },
-            iconTheme: {
-            primary: '#fff',
-            secondary: '#22c55e',
-            },
-        });
-        
-}
-const addToCart = (id) => {
-    const product = wishList.find(p => p.id === id);
-
-    const qty = 1;
-
-    const exists = cart.find(item => item.id === product.id);
-
-    if (!exists) {
-        setCart(prev => [
-            ...prev,
-            {
-                ...product,
-                quantity: qty,
-            },
-        ]);
-
-        toast.success(`${product.name} added to cart`,{
-        style: {
-        background: '#22c55e', 
-        color: '#fff',
-        fontWeight: '500',
-        },
-        iconTheme: {
-        primary: '#fff',
-        secondary: '#22c55e',
-        },
-   });
 
 
-    } else {
-        setCart(prev =>
-            prev.map(item =>
-                item.id === product.id
-                    ? {
-                          ...item,
-                          quantity: item.quantity + qty,
-                      }
-                    : item
-            )
-        );
-        toast.success(`${product.name} added to cart`,{
-        style: {
-        background: '#22c55e', 
-        color: '#fff',
-        fontWeight: '500',
-        },
-        iconTheme: {
-        primary: '#fff',
-        secondary: '#22c55e',
-        },
-   });
-    }
-  
-};
+
 
 if (wishList.length === 0) {
     return (

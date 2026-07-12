@@ -4,64 +4,44 @@ import Footer from './Footer';
 import Products from './Products';
 import { Routes, Route } from "react-router-dom";
 import ProductDetail from './ProductDetail';
-import { useEffect, useState,} from 'react';
+import { useEffect, useState } from 'react';
 import Cart from './Cart';
 import { createContext } from 'react';
 import WishList from './Wishlist';
-import {Toaster} from 'react-hot-toast'
-
-export const cartContext=createContext();
-export const wishContext=createContext();
-
+import { Toaster } from 'react-hot-toast';
+import Checkout from './Checkout';
+import useCartStore from './store/cartStore';
 
 function App() {
-  //hna we get the item from local storage
-  const [cart,setCart]=useState(()=>{
-     const saved=localStorage.getItem("cart");
-     return saved?JSON.parse(saved):[];
-  });
- 
-  //we save it into local storage (kolama cart tbdlat) save it.
-  useEffect(()=>{
-       localStorage.setItem("cart",JSON.stringify(cart));  
-  },[cart]);
+  const cart = useCartStore(state => state.cart);
+  const wish = useCartStore(state => state.wish);
 
-  const [wishList,setWishList]=useState(()=>{
-      const saved=localStorage.getItem("wishList");
-      return saved?JSON.parse(saved):[];
-  });
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart]);
 
-  useEffect(()=>{
-     localStorage.setItem("wishList",JSON.stringify(wishList));
-  },[wishList]);
-
-
-
+  useEffect(() => {
+    localStorage.setItem("wish", JSON.stringify(wish));
+  }, [wish]);
 
   return (
-    <>
-<cartContext.Provider value={{cart,setCart}}>
-    <wishContext.Provider value={{wishList,setWishList}}>
-      <Toaster></Toaster>
-      <Navbar/> 
-      <Routes>
-        <Route path="/" element={<Hero />} />
-        <Route path="/products" element={<Products/>}/>
-        <Route path='/product-detail/:id' element={         
-          <ProductDetail></ProductDetail>}></Route>
-        <Route path='/cart' element={<Cart></Cart>}></Route>
-        <Route path='/wishlist' element={<WishList></WishList>}></Route>
-      </Routes>
-      
+    <div className="min-h-screen flex flex-col">
+      <Toaster />
+      <Navbar />
+
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<Hero />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/product-detail/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/wishlist" element={<WishList />} />
+          <Route path="/checkout" element={<Checkout />} />
+        </Routes>
+      </main>
+
       <Footer />
-    </wishContext.Provider>
-</cartContext.Provider>
-
-
-     
-      
-
-    </>
+    </div>
   );
 }
 

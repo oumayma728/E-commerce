@@ -13,14 +13,12 @@ function Products() {
     const [products, setProducts] = useState([]);
     const [search,setSearch]=useState("");
     const [sort,setSort]=useState("populaire");
-
+    
     const [currentPage,setCurrentPage]=useState(1);
-
     const productsPerPage=8;
 
-    const lastProduct=currentPage*productsPerPage;
+    const lastProduct=productsPerPage*currentPage;
     const firstProduct=lastProduct-productsPerPage;
-
     useEffect(() => {
         async function loadProducts() {
             const response = await fetch("/api/products");
@@ -30,6 +28,11 @@ function Products() {
 
         loadProducts();
     }, []);
+
+
+    useEffect(()=>{
+          setCurrentPage(1);
+    },[category,rating,search,sort,priceMax])
     
 
     const ratings = [
@@ -76,17 +79,12 @@ const filteredProducts = products
     if (sort === "prixD") return b.price - a.price;
     if (sort === "topR") return b.rating - a.rating;
     return 0;
+
   });
 
-const currentProducts = filteredProducts.slice(
-    firstProduct,
-    lastProduct
-);  
+  const currentProduct=filteredProducts.slice(firstProduct,lastProduct);
+  const totalPages=Math.ceil(filteredProducts.length/productsPerPage);
 
-
-const totalPages = Math.ceil(
-    filteredProducts.length / productsPerPage
-);
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-8 flex gap-8">
@@ -270,7 +268,7 @@ const totalPages = Math.ceil(
                             </p>
                         </div>
                      ) : (
-                        currentProducts.map((product) => (
+                        currentProduct.map((product) => (
                             <Link to={`/product-detail/${product.id}`} ><div
                             key={product.id}
                             className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 group cursor-pointer"
@@ -317,28 +315,20 @@ const totalPages = Math.ceil(
 
            
         </div>
-                       
-        <div className="flex justify-center gap-3 mt-10">
 
-                {[...Array(totalPages)].map((_, index) => (
+        <div className='flex items-center justify-center mt-7 gap-3'>
+               {
+                   [...Array(totalPages)].map((_,index)=>(
+                      <button onClick={()=>setCurrentPage(index+1)} className={`w-10 h-10 rounded-2xl ${currentPage===index+1?"bg-indigo-600 text-white":"bg-gray-100"}`}>  
+                          {index+1}
+                      </button>
+                    
 
-                    <button
-                        key={index}
-                        onClick={() => setCurrentPage(index + 1)}
-                        className={`w-10 h-10 rounded-lg
-                            ${
-                                currentPage === index + 1
-                                    ? "bg-indigo-600 text-white"
-                                    : "bg-gray-100"
-                            }`}
-                    >
-                        {index + 1}
-                    </button>
+                   ))
+               }
+        </div>
 
-                ))}
-
-            </div>   
-
+       
                 </div>
             </div>
 

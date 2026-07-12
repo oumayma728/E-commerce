@@ -1,102 +1,60 @@
-import { useState,useEffect,useContext } from "react";
+import { useState,useEffect,useContext,useRef, use } from "react";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import {ShoppingCart, Heart, ChevronLeft, Star, CheckCircle2, AlertTriangle, Sparkles} from "lucide-react";
-import { cartContext } from "./App";
-import { wishContext } from "./App";
 import toast from "react-hot-toast";
-
+import useCartStore from "./store/cartStore";
+import { useStore } from "zustand";
 
 
 function ProductDetail(){
 
-const {cart,setCart}=useContext(cartContext);
-const {wishList,setWishList}=useContext(wishContext);
+
+const addToCart=useCartStore(state=>state.addProductToCart);
+const cart=useCartStore(state=>state.cart);
+const wish=useCartStore(state=>state.wish);
+const handleWish=useCartStore(state=>state.handleWish);
+const clearWish=useCartStore(state=>state.clearWish);
+
 
 const {id}=useParams();
 
    const [products,setProducts]=useState([]);
-   const [quantity,setQuantity]=useState(0);
+   const [quantity, setQuantity] = useState(1);
    const [images,setImage]=useState(0);
    const [reviews,setReviews]=useState([]);
- 
+   const [ratingFilter,setRatingFilter]=useState(0); 
 
-const handleWish=()=>{
-     if(wished){
-         setWishList(p=>p.filter(item=>item.id!==product.id));
-         toast.error('Product removed from wish list ❌',{
-             style:{
-                    background: '#ef4444', 
-                    color: '#fff',
-                    fontWeight: '500',
-             },
-             iconTheme: {
-            primary: '#fff',
-            secondary: '#22c55e',
-             },
-         })
-         
-     }
-     else{
-         setWishList(p=>[...p,product]);
-         toast.success('Product added to wish list ❤️',{
-             style:{
-                    background: '#22c55e', 
-                    color: '#fff',
-                    fontWeight: '500',
-             },
-             iconTheme: {
-            primary: '#fff',
-            secondary: '#22c55e',
-             },
-         })
-     }
-}
+   const positiveKeywords = ["bon","excellent","recommande","top","rapide","qualité","parfait","génial","satisfait","fiable"];
+   const negativeKeywords = ["mauvais","déçu","lent","cher","problème","défaut","cassé","horrible","fragile"];
 
-const handleCart = () => {
-   const qty = quantity === 0 ? 1 : quantity;
-
-   const exists=cart.find(item=>item.id===product.id);
-   if(!exists){
-      setCart(c=>[...c,{
-          ...product,
-          quantity:qty
-      },
-      
-    ]);
-    toast.success(`${product.name} added to cart`,{
-        style: {
-        background: '#22c55e', 
-        color: '#fff',
-        fontWeight: '500',
-        },
-        iconTheme: {
-        primary: '#fff',
-        secondary: '#22c55e',
-        },
-   });
+   function getAiSummary(list){
+        if(!list || list.length===0) return {pros:[],cons:[]};
+        const prosSet=new Set();
+        const consSet=new Set();
+        list.forEach(r=>{
+            const text=(r.comment||"").toLowerCase();
+            positiveKeywords.forEach(k=>{ if(text.includes(k)) prosSet.add(k) });
+            negativeKeywords.forEach(k=>{ if(text.includes(k)) consSet.add(k) });
+        });
+        return { pros:[...prosSet].slice(0,4), cons:[...consSet].slice(0,4) };
    }
-   else{
-     setCart(p=>p.map(item=>
-         item.id===product.id?{
-             ...item,
-             quantity:item.quantity+qty
 
-         }:item
-     ))
-   };
-   toast.success(`${product.name} added to cart`,{
-    style: {
-      background: '#22c55e', 
-      color: '#fff',
-      fontWeight: '500',
-    },
-    iconTheme: {
-      primary: '#fff',
-      secondary: '#22c55e',
-    },
-   });
-}
+   const containerRef = useRef(null);
+   const [isHovering, setIsHovering] = useState(false);
+   const [bgPos, setBgPos] = useState({ x: 0, y: 0 });
+   const zoom = 2.5;
+
+   const handleMouseMove = (e) => {
+        const rect = containerRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        setBgPos({ x, y });
+   }
+
+
+
+
  
    const handleQuantityPlus=()=>{
        
@@ -126,14 +84,10 @@ const handleCart = () => {
   
 
 const product=products.find(p=>p.id===Number(id));
-const wished=wishList.some(item=>item.id===product?.id);
+const wished=wish.some(item=>item.id===product?.id);
 const produitSimilaire = products.filter((p) => {
     return p.category === product.category && p.id !== product.id;
 });
-
-
-
-
 if(products.length === 0){
     return <p>Chargement...</p>;
 }
@@ -141,6 +95,20 @@ if(products.length === 0){
 if(!product){
     return <p>Produit introuvable.</p>;
 }
+
+const totalReviews = product.reviews.length;
+const avgRating = totalReviews
+    ? (product.reviews.reduce((sum,r)=>sum+(r.rating || product.rating),0) / totalReviews).toFixed(1)
+    : 0;
+const ratingCounts = [5,4,3,2,1].map(star=>({
+    star,
+    count: product.reviews.filter(r=>Math.round(r.rating || product.rating)===star).length
+}));
+const filteredReviews = ratingFilter===0
+    ? product.reviews
+    : product.reviews.filter(r=>Math.round(r.rating || product.rating)===ratingFilter);
+const aiSummary = getAiSummary(product.reviews);
+
     return(
      <div className="max-w-7xl mx-auto px-2 py-8">
             <nav className="flex items-center gap-1.5 text-xs text-gray-500 ">
@@ -155,11 +123,21 @@ if(!product){
 
     <div className="grid grid-cols-2 gap-16 lg:grid-cols-2">
         <div>
-            <div className="bg-gray-50 border border-gray-200 rounded-3xl h-[500px] flex items-center justify-center">
+            <div
+                ref={containerRef}
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+                onMouseMove={handleMouseMove}
+                className="relative bg-gray-50 border border-gray-200 rounded-3xl h-[500px] overflow-hidden cursor-crosshair"
+            >
                 <img
                     src={product.image[images]}
                     alt={product.name}
-                    className="w-110 object-contain hover:scale-105 transition duration-300 rounded-xl"
+                    className="w-full h-full object-cover rounded-xl transition-transform duration-150 ease-out"
+                    style={{
+                        transform: isHovering ? `scale(${zoom})` : "scale(1)",
+                        transformOrigin: `${bgPos.x}% ${bgPos.y}%`,
+                    }}
                 />
             </div>
 
@@ -251,14 +229,14 @@ if(!product){
 
                 </div>
 
-                <button className="flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-indigo-600 transition" onClick={handleCart}>
+                <button className="flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-indigo-600 transition" onClick={()=>addToCart(product,quantity)}>
                     <ShoppingCart size={18}/>
                     Ajouter au panier
                 </button>
                 <button className={`w-14 h-14 border rounded-xl flex items-center justify-center transition
                         ${
                           wished? "bg-red-500 text-white border-red-500":"border-gray-200 hover:bg-red-500 hover:text-white"
-                     }`} onClick={handleWish}>
+                     }`} onClick={()=>handleWish(product)}>
                     <Heart size={18} fill={wished ? "currentColor" : "none"}/>
                 </button>
 
@@ -276,7 +254,84 @@ if(!product){
              <h2 className="text-2xl font-bold text-gray-900 mt-10">
                          Avis clients
             </h2>
-                 {product.reviews.map((review)=>(
+
+            {/* Note globale + répartition par étoile, cliquable pour filtrer */}
+            <div className="flex flex-col md:flex-row gap-8 mt-6 bg-white border border-gray-200 rounded-2xl p-6">
+                <div className="flex flex-col items-center justify-center md:w-48 md:border-r md:border-gray-100">
+                    <span className="text-5xl font-bold text-gray-900">{avgRating}</span>
+                    <span className="text-yellow-400 text-lg mt-1">⭐⭐⭐⭐⭐</span>
+                    <span className="text-gray-500 text-sm mt-1">{totalReviews} avis</span>
+                </div>
+
+                <div className="flex-1 flex flex-col gap-2 justify-center">
+                    {ratingCounts.map(({star,count})=>(
+                        <button
+                            key={star}
+                            onClick={()=>setRatingFilter(ratingFilter===star?0:star)}
+                            className="flex items-center gap-3 text-sm w-full"
+                        >
+                            <span className={`w-10 text-left ${ratingFilter===star?"font-semibold text-indigo-600":"text-gray-600"}`}>
+                                {star} ⭐
+                            </span>
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    className={`h-full transition-all ${ratingFilter===star?"bg-indigo-500":"bg-yellow-400"}`}
+                                    style={{width:`${totalReviews?(count/totalReviews)*100:0}%`}}
+                                />
+                            </div>
+                            <span className="w-8 text-gray-400 text-right">{count}</span>
+                        </button>
+                    ))}
+                    {ratingFilter!==0 && (
+                        <button
+                            onClick={()=>setRatingFilter(0)}
+                            className="text-xs text-indigo-600 self-start mt-1 hover:underline"
+                        >
+                            Réinitialiser le filtre
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* pros/cons*/}
+            {(aiSummary.pros.length>0 || aiSummary.cons.length>0) && (
+                <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Sparkles size={18} className="text-indigo-600" />
+                        <h3 className="font-semibold text-indigo-900">Résumé généré par IA</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p className="text-sm font-medium text-green-700 mb-2">Points forts</p>
+                            <ul className="space-y-1.5 text-sm text-gray-700">
+                                {aiSummary.pros.length>0 ? aiSummary.pros.map((p,i)=>(
+                                    <li key={i} className="flex items-start gap-2 capitalize">
+                                        <CheckCircle2 size={14} className="text-green-600 mt-0.5 shrink-0"/>
+                                        {p}
+                                    </li>
+                                )) : <li className="text-gray-400">Pas assez d'avis pour dégager une tendance.</li>}
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-red-700 mb-2">Points faibles</p>
+                            <ul className="space-y-1.5 text-sm text-gray-700">
+                                {aiSummary.cons.length>0 ? aiSummary.cons.map((c,i)=>(
+                                    <li key={i} className="flex items-start gap-2 capitalize">
+                                        <AlertTriangle size={14} className="text-red-500 mt-0.5 shrink-0"/>
+                                        {c}
+                                    </li>
+                                )) : <li className="text-gray-400">Aucun point négatif majeur relevé.</li>}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* filtre note */}
+            {filteredReviews.length===0 && (
+                <p className="text-gray-400 text-sm mt-6">Aucun avis pour cette note.</p>
+            )}
+                 {filteredReviews.map((review)=>(
                     <div key={review.id} className="bg-gray-100 border border-gray-100 rounded-xl p-4 mt-3">
                         <div className="flex items-center justify-between mt-4">
                                <h3 className="font-semibold text-gray-900">
@@ -286,10 +341,10 @@ if(!product){
                         </div>
                         <div>
                            <span className="text-yellow-400 text-sm">
-                                    ⭐⭐⭐⭐⭐
+                                    {"⭐".repeat(Math.round(review.rating || product.rating))}
                             </span>
-                            <span className="text-gray-600 text-sm">
-                                {product.rating}
+                            <span className="text-gray-600 text-sm ml-1">
+                                {review.rating || product.rating}
                             </span>
 
                             <p className="mt-2">{review.comment}</p>
