@@ -1,25 +1,41 @@
-import Navbar from './Navbar';
-import Hero from './Hero';
-import Footer from './Footer';
-import Products from './Products';
+import Navbar from "./Navbar";
+import Hero from "./Hero";
+import Footer from "./Footer";
+import Products from "./Products";
+import ProductDetail from "./ProductDetail";
+import Cart from "./Cart";
+import WishList from "./Wishlist";
+import Checkout from "./Checkout";
+
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 import { Routes, Route } from "react-router-dom";
-import ProductDetail from './ProductDetail';
-import { useEffect, useState } from 'react';
-import Cart from './Cart';
-import { createContext } from 'react';
-import WishList from './Wishlist';
-import { Toaster } from 'react-hot-toast';
-import Checkout from './Checkout';
-import useCartStore from './store/cartStore';
+import { useEffect } from "react";
+
+import { Toaster } from "react-hot-toast";
+
+import useCartStore from "./store/cartStore";
+import useAuth from "./hooks/useAuth";
 
 function App() {
-  const cart = useCartStore(state => state.cart);
-  const wish = useCartStore(state => state.wish);
+  const cart = useCartStore((state) => state.cart);
+  const wish = useCartStore((state) => state.wish);
 
+  const { initializeAuth } = useAuth();
+
+  // Restaurer la session au démarrage de l'application
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
+  // Sauvegarder le panier
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
+  // Sauvegarder les favoris
   useEffect(() => {
     localStorage.setItem("wish", JSON.stringify(wish));
   }, [wish]);
@@ -27,16 +43,29 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Toaster />
+
       <Navbar />
 
       <main className="flex-1">
         <Routes>
+          {/* Pages publiques */}
           <Route path="/" element={<Hero />} />
           <Route path="/products" element={<Products />} />
-          <Route path="/product-detail/:id" element={<ProductDetail />} />
+          <Route
+            path="/product-detail/:id"
+            element={<ProductDetail />}
+          />
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<WishList />} />
-          <Route path="/checkout" element={<Checkout />} />
+
+          {/* Authentification */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Pages privées */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/checkout" element={<Checkout />} />
+          </Route>
         </Routes>
       </main>
 
