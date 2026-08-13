@@ -19,6 +19,8 @@ import { Toaster } from "react-hot-toast";
 import useCartStore from "./store/cartStore";
 import useAuth from "./hooks/useAuth";
 
+import OrderConfirmation from "./pages/OrderConfirmation";
+
 function App() {
   const cart = useCartStore((state) => state.cart);
   const wish = useCartStore((state) => state.wish);
@@ -66,6 +68,10 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/checkout" element={<Checkout />} />
           </Route>
+          <Route
+            path="/order-confirmation"
+            element={<OrderConfirmation />}
+          />
         </Routes>
       </main>
 

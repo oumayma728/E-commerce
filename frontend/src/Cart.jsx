@@ -21,8 +21,8 @@ function Cart() {
         (sum, item) => sum + item.quantity,
         0
     );
-    const tax=subtotal*0.2;
-    const total=subtotal+tax;
+    const shipping = subtotal > 0 ? 5 : 0;
+    const total = subtotal + shipping;
     
     if (cart.length === 0) {
     return (
@@ -174,13 +174,10 @@ function Cart() {
                         </div>
 
                         <div className="flex items-center justify-between py-3 text-sm">
-                            <p className="text-gray-500">Shipping</p>
-                            <p className="font-semibold text-emerald-600">Free</p>
-                        </div>
-
-                        <div className="flex items-center justify-between py-3 text-sm">
-                            <p className="text-gray-500">Tax (20%)</p>
-                            <p className="font-semibold text-gray-900">{tax.toFixed(2)}€</p>
+                            <p className="text-gray-500">Livraison</p>
+                            <p className="font-semibold text-gray-900">
+                                {shipping.toFixed(2)}
+                            </p>
                         </div>
                     </div>
 

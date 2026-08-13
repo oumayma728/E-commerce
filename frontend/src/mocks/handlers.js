@@ -160,4 +160,29 @@ export const handlers = [
       },
     });
   }),
+
+  // =========================
+// Orders
+// =========================
+
+http.post("/api/orders", async ({ request }) => {
+  const body = await request.json();
+
+  const orderNumber = `ORD-${Date.now()}`;
+
+  return HttpResponse.json(
+    {
+      message: "Commande créée avec succès",
+      orderNumber,
+      order: {
+        items: body.items,
+        shippingAddress: body.shippingAddress,
+        total: body.total,
+      },
+    },
+    {
+      status: 201,
+    }
+  );
+}),
 ];
