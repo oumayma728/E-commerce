@@ -57,26 +57,16 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     tableName: 'reviews',
     timestamps: true,
-    underscored: true, // created_at, updated_at
+    underscored: true,
     paranoid: false,
-    // Personnaliser les noms des colonnes timestamp
     createdAt: 'created_at',
-    updatedAt: false, // Pas de updatedAt dans cette table selon le schéma Prisma
+    updatedAt: false,
     indexes: [
+      { fields: ['user_id'] },
+      { fields: ['product_id'] },
+      { fields: ['rating'] },
+      { fields: ['created_at'] },
       {
-        fields: ['user_id']
-      },
-      {
-        fields: ['product_id']
-      },
-      {
-        fields: ['rating']
-      },
-      {
-        fields: ['created_at']
-      },
-      {
-        // Index unique pour empêcher qu'un utilisateur laisse plusieurs avis sur le même produit
         unique: true,
         fields: ['user_id', 'product_id'],
         name: 'unique_user_product_review'
@@ -84,23 +74,19 @@ module.exports = (sequelize, DataTypes) => {
     ]
   });
 
-  // Définir les associations
   Review.associate = (models) => {
-    // Un avis appartient à un utilisateur (ManyToOne)
     if (models.User) {
       Review.belongsTo(models.User, {
         foreignKey: 'userId',
         as: 'user',
-        onDelete: 'CASCADE' // Si l'utilisateur est supprimé, ses avis aussi
+        onDelete: 'CASCADE'
       });
     }
-
-    // Un avis appartient à un produit (ManyToOne)
     if (models.Product) {
       Review.belongsTo(models.Product, {
         foreignKey: 'productId',
         as: 'product',
-        onDelete: 'CASCADE' // Si le produit est supprimé, ses avis aussi
+        onDelete: 'CASCADE'
       });
     }
   };
