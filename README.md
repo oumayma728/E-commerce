@@ -512,7 +512,7 @@ Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de 
 <a href="https://github.com/abdellahajebli">
 <img src="https://github.com/abdellahajebli.png" width="100px;" alt="Abdellah ajebli"/><br/>
 <sub><b>Abdellah ajebli</b></sub><br/>
-<sub>Front-end devloper</sub>
+<sub>FRONT-END DEVELOPER</sub>
 </a>
 </td>
   
