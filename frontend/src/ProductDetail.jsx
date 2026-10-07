@@ -34,20 +34,9 @@ function ProductDetail() {
     const [images, setImage] = useState(0);
     const [ratingFilter, setRatingFilter] = useState(0);
 
-    const positiveKeywords = ["bon","excellent","recommande","top","rapide","qualité","parfait","génial","satisfait","fiable"];
-    const negativeKeywords = ["mauvais","déçu","lent","cher","problème","défaut","cassé","horrible","fragile"];
-
-    function getAiSummary(list) {
-        if (!list || list.length === 0) return { pros: [], cons: [] };
-        const prosSet = new Set();
-        const consSet = new Set();
-        list.forEach((r) => {
-            const text = (r.comment || "").toLowerCase();
-            positiveKeywords.forEach((k) => { if (text.includes(k)) prosSet.add(k); });
-            negativeKeywords.forEach((k) => { if (text.includes(k)) consSet.add(k); });
-        });
-        return { pros: [...prosSet].slice(0, 4), cons: [...consSet].slice(0, 4) };
-    }
+    // Résumé IA des avis (GET /api/products/:id/review-summary, Groq côté serveur)
+    // status : "idle" (pas d'avis) | "loading" | "ready" | "error" (bloc masqué)
+    const [aiSummary, setAiSummary] = useState({ status: "idle", pros: [], cons: [], ratingSummary: "" });
 
     const containerRef = useRef(null);
     const [isHovering, setIsHovering] = useState(false);
@@ -147,6 +136,44 @@ function ProductDetail() {
             })
             .catch((err) => console.error("events/view error:", err));
     }, [isAuthenticated, product?.id]);
+
+    // Résumé IA : recalculé quand la liste des avis change (chargement, nouvel avis).
+    // Le serveur garde le résumé en cache tant que les avis ne changent pas.
+    const reviewsKey = reviews.map((r) => r.id).join(",");
+    useEffect(() => {
+        if (!id || loadingReviews || reviewsKey === "") {
+            setAiSummary({ status: "idle", pros: [], cons: [], ratingSummary: "" });
+            return;
+        }
+
+        let cancelled = false;
+        setAiSummary((prev) => ({ ...prev, status: "loading" }));
+
+        async function loadAiSummary() {
+            try {
+                const response = await fetch(`/api/products/${id}/review-summary`);
+                const data = await response.json();
+                if (cancelled) return;
+                if (!response.ok) throw new Error(data?.message || `HTTP ${response.status}`);
+
+                const summary = data?.data?.summary ?? {};
+                setAiSummary({
+                    status: "ready",
+                    pros: summary.pros ?? [],
+                    cons: summary.cons ?? [],
+                    ratingSummary: summary.rating_summary ?? "",
+                });
+            } catch (err) {
+                if (!cancelled) {
+                    console.error("review-summary error:", err);
+                    setAiSummary({ status: "error", pros: [], cons: [], ratingSummary: "" });
+                }
+            }
+        }
+
+        loadAiSummary();
+        return () => { cancelled = true; };
+    }, [id, loadingReviews, reviewsKey]);
 
     // Récupère les avis via GET /api/products/:id/reviews?limit=50 (indépendant du produit)
     useEffect(() => {
@@ -255,7 +282,6 @@ function ProductDetail() {
     const filteredReviews = ratingFilter === 0
         ? reviews
         : reviews.filter((r) => Math.round(Number(r.rating) || 0) === ratingFilter);
-    const aiSummary = getAiSummary(reviews);
     // Le backend refuse un 2e avis (409) ; on masque le bouton si le sien est déjà dans la liste.
     const hasReviewed = !!currentUser?.id && reviews.some((r) => r.user?.id === currentUser.id);
 
@@ -460,18 +486,27 @@ function ProductDetail() {
                 </div>
 
                 {/* pros/cons */}
-                {(aiSummary.pros.length > 0 || aiSummary.cons.length > 0) && (
+                {aiSummary.status === "loading" && (
+                    <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex items-center gap-2 text-sm text-indigo-700">
+                        <Sparkles size={18} className="text-indigo-600 animate-pulse" />
+                        Analyse des avis…
+                    </div>
+                )}
+                {aiSummary.status === "ready" && (aiSummary.pros.length > 0 || aiSummary.cons.length > 0 || aiSummary.ratingSummary) && (
                     <div className="mt-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
                         <div className="flex items-center gap-2 mb-4">
                             <Sparkles size={18} className="text-indigo-600" />
                             <h3 className="font-semibold text-indigo-900">Résumé généré par IA</h3>
                         </div>
+                        {aiSummary.ratingSummary && (
+                            <p className="text-sm text-gray-700 mb-4">{aiSummary.ratingSummary}</p>
+                        )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <p className="text-sm font-medium text-green-700 mb-2">Points forts</p>
                                 <ul className="space-y-1.5 text-sm text-gray-700">
                                     {aiSummary.pros.length > 0 ? aiSummary.pros.map((p, i) => (
-                                        <li key={i} className="flex items-start gap-2 capitalize">
+                                        <li key={i} className="flex items-start gap-2">
                                             <CheckCircle2 size={14} className="text-green-600 mt-0.5 shrink-0" />
                                             {p}
                                         </li>
@@ -482,7 +517,7 @@ function ProductDetail() {
                                 <p className="text-sm font-medium text-red-700 mb-2">Points faibles</p>
                                 <ul className="space-y-1.5 text-sm text-gray-700">
                                     {aiSummary.cons.length > 0 ? aiSummary.cons.map((c, i) => (
-                                        <li key={i} className="flex items-start gap-2 capitalize">
+                                        <li key={i} className="flex items-start gap-2">
                                             <AlertTriangle size={14} className="text-red-500 mt-0.5 shrink-0" />
                                             {c}
                                         </li>
