@@ -1242,7 +1242,10 @@ loadAdminCategories();
                                 {recentOrders.slice(0, 5).map((order) => (
                                   <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                                     <td className="px-6 py-4 font-semibold text-indigo-600 text-sm">
-                                        <Link to={`/order-detail/${order.id}`}>{order.id}</Link>
+                                        {/* Fenêtre de détail admin : /order-detail ne montre que les commandes de l'utilisateur connecté */}
+                                        <button type="button" onClick={() => openOrderDetail(order.orderId || order.id)} className="hover:underline">
+                                          {order.id}
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 text-sm font-medium text-gray-900">{order.customer || "Client"}</td>
                                     <td className="px-6 py-4">{getStatusBadge(order.status)}</td>
