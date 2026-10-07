@@ -308,7 +308,10 @@ const [topProducts, setTopProducts] = useState([]);
         setSelectedNewStatus(order.availableTransitions[0]);
       }
     } catch (error) {
-      setOrderDetailError(error?.message || 'Impossible de charger le détail de la commande.');
+      const message = error?.message || 'Impossible de charger le détail de la commande.';
+      setOrderDetailError(message);
+      // La fenêtre ne s'ouvre pas sans commande : sans ce toast, l'erreur restait invisible
+      toast.error(message);
     } finally {
       setIsLoadingOrderDetail(false);
     }

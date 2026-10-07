@@ -39,6 +39,15 @@ LANCEMENT :
 """
 
 import json
+import sys
+
+# Les logs contiennent des emojis : une console Windows en cp1252 lève
+# UnicodeEncodeError dans print(), ce qui interrompait la réponse (le message
+# d'erreur SSE n'était jamais envoyé). Sortie en UTF-8, caractère remplacé
+# si la console ne peut pas l'afficher.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
