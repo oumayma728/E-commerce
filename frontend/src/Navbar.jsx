@@ -1,11 +1,23 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useContext, useEffect,useState } from "react";
 import { Heart } from "lucide-react";
 import useCartStore from "./store/cartStore";
+import useAuth from "./store/useAuth";
 function Navbar(){
      const cart=useCartStore(state=>state.cart);
      const wishList=useCartStore(state=>state.wish);
+     const resetCart=useCartStore(state=>state.reset);
+     const isAuthenticated=useAuth(state=>state.isAuthenticated);
+     const user=useAuth(state=>state.user);
+     const logout=useAuth(state=>state.logout);
+     const navigate=useNavigate();
+
+     const handleLogout=async()=>{
+          await logout();
+          resetCart();
+          navigate("/");
+     };
 
      const [quantity,setQuantity]=useState(0);
      const [wishQuantity,setWishQuantity]=useState(0);
@@ -29,11 +41,17 @@ function Navbar(){
                   <Link to="/" className="text-sm text-gray-600 hover:text-indigo-600 transition-colors">Home</Link>
                   <Link to="/products" className="text-sm text-gray-600 hover:text-indigo-600 transition-colors">Products</Link>
                   <Link to="/orders" className="text-sm text-gray-600 hover:text-indigo-600 transition-colors">Orders</Link>
-                  <Link to="/deals" className="text-sm text-gray-600 hover:text-indigo-600 transition-colors">Deals</Link>
               </div>
 
               <div className="flex items-center gap-3">
-                  <Link to="/login"><button className="text-sm text-gray-600 hover:text-indigo-600 transition-colors px-3 py-2">Sign in</button></Link>
+                  {isAuthenticated ? (
+                      <>
+                          <span className="hidden sm:inline text-sm text-gray-600">{user?.name}</span>
+                          <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-indigo-600 transition-colors px-3 py-2">Sign out</button>
+                      </>
+                  ) : (
+                      <Link to="/login"><button className="text-sm text-gray-600 hover:text-indigo-600 transition-colors px-3 py-2">Sign in</button></Link>
+                  )}
                  <Link to="/cart">
                        <button className="text-sm bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors shadow-sm">Cart:{totalQuantity}</button>
 

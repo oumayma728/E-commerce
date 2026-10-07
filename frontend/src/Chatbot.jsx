@@ -1,5 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, RotateCcw } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+
+// Réponses du bot en Markdown (gras, listes...). react-markdown n'exécute pas
+// le HTML brut ; les images sont retirées (le modèle pourrait pointer n'importe où).
+const MARKDOWN_COMPONENTS = {
+    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+    ul: ({ children }) => <ul className="list-disc pl-5 mb-2 last:mb-0 space-y-1">{children}</ul>,
+    ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 last:mb-0 space-y-1">{children}</ol>,
+    strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+    a: ({ href, children }) => (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline">{children}</a>
+    ),
+    h1: ({ children }) => <p className="font-semibold mb-2">{children}</p>,
+    h2: ({ children }) => <p className="font-semibold mb-2">{children}</p>,
+    h3: ({ children }) => <p className="font-semibold mb-2">{children}</p>,
+    code: ({ children }) => <code className="bg-gray-100 rounded px-1">{children}</code>,
+};
 
 // Intervalle (ms) entre deux ajouts de caractères dans l'animation letter-by-letter.
 const ANIMATION_INTERVAL = 25;
@@ -357,13 +374,23 @@ function Chatbot() {
                                 className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
                                 <div
-                                    className={`max-w-[80%] p-3 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                                    className={`max-w-[80%] p-3 rounded-2xl text-sm break-words ${
                                         msg.sender === 'user'
-                                            ? 'bg-indigo-600 text-white rounded-br-sm'
+                                            ? 'bg-indigo-600 text-white rounded-br-sm whitespace-pre-wrap'
                                             : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
                                     }`}
                                 >
-                                    {msg.text}
+                                    {msg.sender === 'user' ? (
+                                        msg.text
+                                    ) : (
+                                        <ReactMarkdown
+                                            components={MARKDOWN_COMPONENTS}
+                                            disallowedElements={['img']}
+                                            unwrapDisallowed
+                                        >
+                                            {msg.text}
+                                        </ReactMarkdown>
+                                    )}
                                 </div>
                             </div>
                         ))}

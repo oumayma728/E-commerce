@@ -263,8 +263,40 @@ module.exports = (sequelize) => {
         break;
     }
     
-    // Sauvegarder les changements
-    await this.save();
+    if (newStatus === ORDER_STATUS.CANCELED) {
+      // Annulation (client ou admin) : remise en stock dans la même transaction.
+      // La ligne de la commande est verrouillée et relue pour qu'une double
+      // annulation simultanée ne remette pas le stock deux fois.
+      try {
+        await sequelize.transaction(async (t) => {
+          const fresh = await Order.findByPk(this.id, { lock: t.LOCK.UPDATE, transaction: t });
+          if (!fresh || fresh.status !== currentStatus) {
+            throw new Error(`La commande ${this.orderId} a déjà changé de statut (${fresh ? fresh.status : 'introuvable'}).`);
+          }
+          await this.save({ transaction: t });
+
+          // Seuls les articles dont le stock a été décrémenté (commandes créées
+          // après l'ajout du contrôle de stock) sont remis en stock.
+          for (const item of this.items || []) {
+            if (item.stockReserved && item.productId && item.quantity > 0) {
+              await sequelize.models.Product.increment('stock', {
+                by: item.quantity,
+                where: { id: item.productId },
+                transaction: t
+              });
+            }
+          }
+        });
+      } catch (error) {
+        // Rien n'a été enregistré : on remet l'instance dans son état d'origine
+        this.status = currentStatus;
+        this.canceledAt = null;
+        throw error;
+      }
+    } else {
+      // Sauvegarder les changements
+      await this.save();
+    }
     
     console.log(`✅ Commande ${this.orderId}: Statut mis à jour vers "${newStatus}"`);
     

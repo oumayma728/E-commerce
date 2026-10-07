@@ -121,6 +121,7 @@ const trendingService = require('../services/trendingService');
         price: parseFloat(product.price),
         image: product.images && product.images.length > 0 ? product.images[0] : null,
         category: product.category ? product.category.name : null,
+        ratingAvg: parseFloat(product.ratingAvg || 0),
         viewCount
     }));
 

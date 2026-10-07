@@ -336,7 +336,6 @@ class AuthController {
    */
   static async generateTokens(user) {
     const jwtSecret = process.env.JWT_SECRET || 'your-fallback-secret-key';
-     console.log("LOGIN SECRET =", process.env.JWT_SECRET);
     // Payload pour les tokens
     const payload = {
       userId: user.id,
@@ -350,10 +349,12 @@ class AuthController {
     });
 
     // Refresh token (7 jours selon CDC)
+    // jwtid unique : sans lui, deux tokens générés dans la même seconde pour le
+    // même utilisateur seraient identiques (violation de l'unicité en base).
     const refreshTokenValue = jwt.sign(
-      { userId: user.id, type: 'refresh' }, 
-      jwtSecret, 
-      { expiresIn: '7d' }
+      { userId: user.id, type: 'refresh' },
+      jwtSecret,
+      { expiresIn: '7d', jwtid: uuidv4() }
     );
 
     // Stocker le refresh token en base

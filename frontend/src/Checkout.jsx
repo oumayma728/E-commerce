@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useCartStore from "./store/cartStore";
+import { apiFetch } from "./lib/api";
 import { useNavigate } from "react-router-dom"; // Pour la redirection
 import toast from "react-hot-toast"; // Pour les notifications
 
@@ -25,7 +26,7 @@ function Checkout() {
   const {
      register,
      handleSubmit,
-     formState: { errors },
+     formState: { errors, isSubmitting },
   } = useForm({
      resolver: zodResolver(schema)
   });
@@ -65,11 +66,10 @@ const onSubmit = async (data) => {
       // 2. Lancer le paiement Stripe (POST /api/payments/create-intent)
       //    avec l'orderId et le montant total retourné par le backend
       try {
-          const stripeRes = await fetch('/api/payments/create-intent', {
+          const stripeRes = await apiFetch('/api/payments/create-intent', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json',
-                  Authorization: `Bearer ${localStorage.getItem('token')}`,
               },
               body: JSON.stringify({
                   orderId: result.orderId,
@@ -315,9 +315,10 @@ const onSubmit = async (data) => {
             </h2>
           </div>
 
-          <button className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-xl py-4 font-semibold flex justify-center items-center gap-2" type="submit">
+          {/* Désactivé pendant l'envoi : un double clic créait deux commandes */}
+          <button className="w-full bg-indigo-600 hover:bg-indigo-700 transition text-white rounded-xl py-4 font-semibold flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed" type="submit" disabled={isSubmitting}>
             <Lock size={18} />
-            Pay Now
+            {isSubmitting ? "Traitement…" : "Pay Now"}
           </button>
 
           <div className="mt-8 space-y-4">

@@ -13,6 +13,7 @@ import {
 import { Link } from 'react-router-dom';
 import useCartStore from './store/cartStore';
 import useAuth from './store/useAuth';
+import { apiFetch } from './lib/api';
 import ProductFormModal from './components/ProductFormModal';
 import CategoryFormModal from './components/CategoryFormModal';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
@@ -135,7 +136,7 @@ const [topProducts, setTopProducts] = useState([]);
 
   // Mapping des statuts backend (anglais) → français pour l'affichage
   const STATUS_LABELS = {
-    pending: 'En préparation',
+    pending: 'En attente de paiement',
     confirmed: 'Confirmée',
     shipped: 'Expédiée',
     delivered: 'Livrée',
@@ -171,7 +172,7 @@ const [topProducts, setTopProducts] = useState([]);
         internalId: order.id,
         date: order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR') : '',
         isoDate: order.createdAt,
-        status: STATUS_LABELS[order.status] || order.status || 'En préparation',
+        status: STATUS_LABELS[order.status] || order.status || 'En attente de paiement',
         _status: order.status,
         total: parseFloat(order.totalAmount || 0),
         customer,
@@ -192,7 +193,6 @@ const [topProducts, setTopProducts] = useState([]);
     setIsLoadingOrders(true);
     setOrdersError(null);
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: ordersCurrentPage,
         limit: ordersPerPage
@@ -201,9 +201,7 @@ const [topProducts, setTopProducts] = useState([]);
       if (orderDateFilter) params.set('startDate', orderDateFilter);
       if (orderClientFilter.trim()) params.set('userEmail', orderClientFilter.trim());
 
-      const res = await fetch(`/api/admin/orders?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/orders?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des commandes');
@@ -231,7 +229,6 @@ const [topProducts, setTopProducts] = useState([]);
       setIsLoadingOrders(true);
       setOrdersError(null);
       try {
-        const token = localStorage.getItem('token');
         const params = new URLSearchParams({
           page: ordersCurrentPage,
           limit: ordersPerPage
@@ -240,9 +237,7 @@ const [topProducts, setTopProducts] = useState([]);
         if (orderDateFilter) params.set('startDate', orderDateFilter);
         if (orderClientFilter.trim()) params.set('userEmail', orderClientFilter.trim());
 
-        const res = await fetch(`/api/admin/orders?${params.toString()}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/admin/orders?${params.toString()}`);
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des commandes');
@@ -290,10 +285,7 @@ const [topProducts, setTopProducts] = useState([]);
     setOrderDetailError(null);
     setIsLoadingOrderDetail(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/orders/${orderId}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération du détail');
@@ -327,12 +319,10 @@ const [topProducts, setTopProducts] = useState([]);
     if (!selectedOrder || !selectedNewStatus) return;
     setIsUpdatingStatus(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/orders/${selectedOrder.orderId}/status`, {
+      const res = await apiFetch(`/api/admin/orders/${selectedOrder.orderId}/status`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ newStatus: selectedNewStatus })
       });
@@ -359,7 +349,7 @@ const [topProducts, setTopProducts] = useState([]);
 
 // Badge de statut coloré (FonctionnalitéHaute#427)
   function getOrderStatusBadge(status) {
-    const label = STATUS_LABELS[status] || status || 'En préparation';
+    const label = STATUS_LABELS[status] || status || 'En attente de paiement';
     const color = STATUS_BADGES[status] || 'bg-gray-100 text-gray-700';
     return <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${color}`}>{label}</span>;
   }
@@ -382,16 +372,13 @@ const [topProducts, setTopProducts] = useState([]);
     setIsLoadingUsers(true);
     setUsersError(null);
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams({
         page: usersCurrentPage,
         limit: usersPerPage
       });
       if (userSearchFilter.trim()) params.set('search', userSearchFilter.trim());
 
-      const res = await fetch(`/api/admin/users?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/users?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des clients');
@@ -419,16 +406,13 @@ const [topProducts, setTopProducts] = useState([]);
       setIsLoadingUsers(true);
       setUsersError(null);
       try {
-        const token = localStorage.getItem('token');
         const params = new URLSearchParams({
           page: usersCurrentPage,
           limit: usersPerPage
         });
         if (userSearchFilter.trim()) params.set('search', userSearchFilter.trim());
 
-        const res = await fetch(`/api/admin/users?${params.toString()}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/admin/users?${params.toString()}`);
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des clients');
@@ -474,10 +458,7 @@ const [topProducts, setTopProducts] = useState([]);
     setUserDetailError(null);
     setIsLoadingUserDetail(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/admin/users/${userId}`);
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération du profil client');
@@ -504,15 +485,13 @@ const [topProducts, setTopProducts] = useState([]);
     const targetActive = deactivateConfirmUser.isActive;
     setIsUpdatingUserActive(true);
     try {
-      const token = localStorage.getItem('token');
       const endpoint = targetActive
         ? `/api/admin/users/${userId}/deactivate`
         : `/api/admin/users/${userId}/reactivate`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       const data = await res.json();
@@ -538,12 +517,7 @@ const [topProducts, setTopProducts] = useState([]);
   // Rafraîchir la liste des produits (après création/édition)
   async function refreshProducts() {
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch('/api/admin/products?includeInactive=true', {
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
-          });
+          const res = await apiFetch('/api/admin/products?includeInactive=true');
           const data = await res.json();
           if (res.ok) {
               setProducts(data?.data?.products ?? []);
@@ -558,12 +532,8 @@ const [topProducts, setTopProducts] = useState([]);
       if (!deleteConfirmProduct) return;
       setIsDeletingProduct(true);
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`/api/admin/products/${deleteConfirmProduct.id}`, {
-              method: 'DELETE',
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
+          const res = await apiFetch(`/api/admin/products/${deleteConfirmProduct.id}`, {
+              method: 'DELETE'
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -608,12 +578,7 @@ const [topProducts, setTopProducts] = useState([]);
           setIsLoadingProducts(true);
           setProductsError(null);
           try {
-              const token = localStorage.getItem('token');
-              const res = await fetch('/api/admin/products?includeInactive=true', {
-                  headers: {
-                      'Authorization': `Bearer ${token}`
-                  }
-              });
+              const res = await apiFetch('/api/admin/products?includeInactive=true');
               const data = await res.json();
               if (!res.ok) {
                   throw new Error(data?.message || 'Erreur lors de la récupération des produits');
@@ -643,12 +608,7 @@ const [topProducts, setTopProducts] = useState([]);
   // Rafraîchir la liste des catégories (après création/édition/suppression)
   async function refreshCategories() {
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch('/api/admin/categories', {
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
-          });
+          const res = await apiFetch('/api/admin/categories');
           const data = await res.json();
           if (res.ok) {
               setCategories(data?.data?.categories ?? []);
@@ -663,12 +623,8 @@ const [topProducts, setTopProducts] = useState([]);
       if (!deleteConfirmCategory) return;
       setIsDeletingCategory(true);
       try {
-          const token = localStorage.getItem('token');
-          const res = await fetch(`/api/admin/categories/${deleteConfirmCategory.id}`, {
-              method: 'DELETE',
-              headers: {
-                  'Authorization': `Bearer ${token}`
-              }
+          const res = await apiFetch(`/api/admin/categories/${deleteConfirmCategory.id}`, {
+              method: 'DELETE'
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -695,12 +651,7 @@ const [topProducts, setTopProducts] = useState([]);
           setIsLoadingCategories(true);
           setCategoriesError(null);
           try {
-              const token = localStorage.getItem('token');
-              const res = await fetch('/api/admin/categories', {
-                  headers: {
-                      'Authorization': `Bearer ${token}`
-                  }
-              });
+              const res = await apiFetch('/api/admin/categories');
               const data = await res.json();
               if (!res.ok) {
                   throw new Error(data?.message || 'Erreur lors de la récupération des catégories');
@@ -734,10 +685,7 @@ loadAdminCategories();
       setIsLoadingRevenue(true);
       setRevenueError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/admin/analytics/revenue?period=${revenuePeriod}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/admin/analytics/revenue?period=${revenuePeriod}`);
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des analytics');
@@ -770,10 +718,7 @@ loadAdminCategories();
       setIsLoadingTopProducts(true);
       setTopProductsError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/admin/analytics/top-products?limit=10', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/admin/analytics/top-products?limit=10');
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération du top produits');
@@ -802,10 +747,7 @@ loadAdminCategories();
     setIsLoadingMetrics(true);
     setMetricsError(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/dashboard/metrics', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/admin/dashboard/metrics');
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des métriques');
@@ -829,10 +771,7 @@ loadAdminCategories();
     setIsLoadingRecentOrders(true);
     setRecentOrdersError(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/admin/dashboard/recent-orders', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/admin/dashboard/recent-orders');
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || 'Erreur lors de la récupération des dernières commandes');
@@ -855,10 +794,7 @@ loadAdminCategories();
       setIsLoadingMetrics(true);
       setMetricsError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/admin/dashboard/metrics', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/admin/dashboard/metrics');
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des métriques');
@@ -895,10 +831,7 @@ loadAdminCategories();
       setIsLoadingRecentOrders(true);
       setRecentOrdersError(null);
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/admin/dashboard/recent-orders', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch('/api/admin/dashboard/recent-orders');
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data?.message || 'Erreur lors de la récupération des dernières commandes');
@@ -997,10 +930,10 @@ loadAdminCategories();
   const getStatusBadge = (status) => {
     switch(status) {
       case 'Livré': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">Livré</span>;
-      case 'En préparation': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">En préparation</span>;
+      case 'En attente de paiement': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-700">En attente de paiement</span>;
       case 'En transit': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">En transit</span>;
       case 'Annulé': return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">Annulé</span>;
-      default: return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">{status || "En préparation"}</span>;
+      default: return <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-700">{status || "En attente de paiement"}</span>;
     }
   };
 
@@ -1406,7 +1339,7 @@ loadAdminCategories();
                               className="pl-10 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 shadow-sm appearance-none cursor-pointer"
                           >
                               <option value="">Tous les statuts</option>
-                              <option value="pending">En préparation</option>
+                              <option value="pending">En attente de paiement</option>
                               <option value="confirmed">Confirmée</option>
                               <option value="shipped">Expédiée</option>
                               <option value="delivered">Livrée</option>
@@ -2490,7 +2423,7 @@ confirmDisabled={
                           className="pl-8 pr-6 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-indigo-500 shadow-sm appearance-none cursor-pointer"
                         >
                           <option value="">Tous les statuts</option>
-                          <option value="pending">En préparation</option>
+                          <option value="pending">En attente de paiement</option>
                           <option value="confirmed">Confirmée</option>
                           <option value="shipped">Expédiée</option>
                           <option value="delivered">Livrée</option>

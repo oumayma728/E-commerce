@@ -1,4 +1,23 @@
-const { Order, Cart, CartItem, User } = require('../../models');
+const { Order, Cart, CartItem, User, Product, sequelize } = require('../../models');
+
+/**
+ * Erreur levée dans la transaction de createOrder quand un produit manque :
+ * annule la transaction et donne les détails du conflit (réponse 409).
+ */
+class StockConflictError extends Error {
+  constructor(conflicts) {
+    super('Stock insuffisant : ' + conflicts
+      .map(c => `${c.name} (demandé ${c.requested}, disponible ${c.available})`)
+      .join(', '));
+    this.conflicts = conflicts;
+  }
+}
+/**
+ * Erreur levée dans la transaction de createOrder quand le panier est absent
+ * ou vide (réponse 400). Cas typique : une 2e requête simultanée (double clic)
+ * qui attend le verrou du panier et le trouve vidé par la 1re.
+ */
+class EmptyCartError extends Error {}
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -29,58 +48,106 @@ class OrderController {
 
       console.log(`📦 Création de commande pour l'utilisateur ${userId}`);
 
-      // Sous-tâche 1: Récupérer le panier de l'utilisateur via findByUserId
-      const cart = await Cart.findByUserId(userId);
-      
-      if (!cart) {
-        return res.status(400).json({
-          success: false,
-          message: 'Aucun panier trouvé pour cet utilisateur'
+      // Transaction : verrouillage du panier puis des produits, contrôle et
+      // décrément du stock, création de la commande et vidage du panier.
+      // Tout est annulé en cas d'échec.
+      const order = await sequelize.transaction(async (t) => {
+        // Sous-tâche 1 : panier verrouillé (FOR UPDATE) et lu dans la transaction.
+        // Deux requêtes simultanées passent l'une après l'autre : la 2e trouve
+        // le panier vidé par la 1re au lieu de créer une commande en double.
+        const cart = await Cart.findOne({
+          where: { userId },
+          lock: t.LOCK.UPDATE,
+          transaction: t
         });
-      }
+        if (!cart) {
+          throw new EmptyCartError('Aucun panier trouvé pour cet utilisateur');
+        }
 
-      // Sous-tâche 2: Vérifier que panier.items.length > 0
-      if (!cart.items || cart.items.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Le panier est vide. Ajoutez des produits avant de passer commande.'
+        // Sous-tâche 2 : vérifier que le panier contient des articles
+        const cartItems = await CartItem.findAll({
+          where: { cartId: cart.id },
+          order: [['created_at', 'ASC']],
+          transaction: t
         });
-      }
+        if (cartItems.length === 0) {
+          throw new EmptyCartError('Le panier est vide. Ajoutez des produits avant de passer commande.');
+        }
+        console.log(`🛒 Panier trouvé avec ${cartItems.length} items`);
 
-      console.log(`🛒 Panier trouvé avec ${cart.items.length} items`);
+        const productIds = cartItems.map(item => item.productId);
+        // FOR UPDATE, dans un ordre fixe pour éviter les interblocages entre deux commandes
+        const products = await Product.findAll({
+          where: { id: productIds },
+          order: [['id', 'ASC']],
+          lock: t.LOCK.UPDATE,
+          transaction: t
+        });
+        const productsById = new Map(products.map(p => [p.id, p]));
 
-      // Copier les items du panier dans la commande
-      const orderItems = cart.items.map(item => ({
-        productId: item.productId,
-        name: item.name || 'Produit',
-        price: parseFloat(item.price) || 0,
-        quantity: item.quantity || 1,
-        total: (parseFloat(item.price) || 0) * (item.quantity || 1)
-      }));
+        const conflicts = [];
+        for (const item of cartItems) {
+          const product = productsById.get(item.productId);
+          const available = product && product.isActive ? product.stock : 0;
+          if (available < item.quantity) {
+            conflicts.push({
+              productId: item.productId,
+              name: product ? product.name : 'Produit indisponible',
+              requested: item.quantity,
+              available
+            });
+          }
+        }
+        if (conflicts.length > 0) {
+          throw new StockConflictError(conflicts);
+        }
 
-      // Calculer le totalAmount
-      const totalAmount = orderItems.reduce((sum, item) => sum + item.total, 0);
+        // Snapshot des produits au moment de l'achat (nom, prix actuel, image) :
+        // la commande ne dépend plus de la table products ensuite.
+        // stockReserved : le stock a été décrémenté, il sera remis en cas d'annulation.
+        const orderItems = cartItems.map(item => {
+          const product = productsById.get(item.productId);
+          const price = parseFloat(product.price) || 0;
+          return {
+            productId: product.id,
+            name: product.name,
+            price,
+            image: (product.images && product.images[0]) || null,
+            quantity: item.quantity,
+            total: Math.round(price * item.quantity * 100) / 100,
+            stockReserved: true
+          };
+        });
 
-      console.log(`💰 Total calculé: ${totalAmount}€`);
+        for (const item of orderItems) {
+          await productsById.get(item.productId).decrement('stock', { by: item.quantity, transaction: t });
+        }
 
-      // Créer la commande avec status=pending
-      const order = await Order.create({
-        id: uuidv4(),
-        orderId: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-        userId: userId,
-        items: orderItems,
-        totalAmount: totalAmount,
-        status: 'pending', // Status initial selon spécification FonctionnalitéHaute#1778
-        shippingAddress: shippingAddress || null,
-        billingAddress: billingAddress || null,
-        paymentMethod: paymentMethod || null,
-        notes: notes || null
+        const totalAmount = Math.round(orderItems.reduce((sum, item) => sum + item.total, 0) * 100) / 100;
+        console.log(`💰 Total calculé: ${totalAmount}€`);
+
+        // Créer la commande avec status=pending
+        const created = await Order.create({
+          id: uuidv4(),
+          orderId: `ORD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          userId: userId,
+          items: orderItems,
+          totalAmount: totalAmount,
+          status: 'pending', // Status initial selon spécification FonctionnalitéHaute#1778
+          shippingAddress: shippingAddress || null,
+          billingAddress: billingAddress || null,
+          paymentMethod: paymentMethod || null,
+          notes: notes || null
+        }, { transaction: t });
+
+        // Sous-tâche 3: vider le panier (dans la même transaction)
+        await cart.clear({ transaction: t });
+
+        return created;
       });
 
+      const totalAmount = parseFloat(order.totalAmount);
       console.log(`✅ Commande créée: ${order.orderId} (Status: ${order.status})`);
-
-      // Sous-tâche 3: Appeler cart.clear() pour vider le panier
-      await cart.clear();
 
       // Retourner la réponse selon la spécification: { orderId, total, status: 'pending' }
       res.status(201).json({
@@ -94,6 +161,19 @@ class OrderController {
       });
 
     } catch (error) {
+      if (error instanceof EmptyCartError) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+      if (error instanceof StockConflictError) {
+        return res.status(409).json({
+          success: false,
+          message: error.message,
+          conflicts: error.conflicts
+        });
+      }
       console.error('Erreur lors de la création de commande:', error);
       res.status(500).json({
         success: false,
@@ -221,7 +301,8 @@ class OrderController {
         attributes: [
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
-          'trackingNumber', 'notes', 'created_at', 'updated_at'
+          'trackingNumber', 'notes', 'created_at', 'updated_at',
+          'canceledAt', 'confirmedAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -238,6 +319,7 @@ class OrderController {
         items: order.items?.map(item => ({
           productId: item.productId,
           name: item.name,
+          image: item.image || null,
           quantity: item.quantity,
           price: parseFloat(item.price),
           total: parseFloat(item.total || (item.price * item.quantity))
@@ -256,10 +338,10 @@ class OrderController {
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         // Dates de suivi (FonctionnalitéMoyenne#1782)
-        canceledAt: order.canceled_at,
-        confirmedAt: order.confirmed_at,
-        shippedAt: order.shipped_at,
-        deliveredAt: order.delivered_at
+        canceledAt: order.canceledAt,
+        confirmedAt: order.confirmedAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt
       }));
 
       // Pagination détaillée
@@ -325,7 +407,8 @@ class OrderController {
         attributes: [
           'id', 'orderId', 'userId', 'status', 'totalAmount', 'items',
           'shippingAddress', 'billingAddress', 'paymentMethod', 
-          'trackingNumber', 'notes', 'created_at', 'updated_at'
+          'trackingNumber', 'notes', 'created_at', 'updated_at',
+          'canceledAt', 'confirmedAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -350,6 +433,7 @@ class OrderController {
         items: order.items?.map(item => ({
           productId: item.productId, // product_id selon spécification
           name: item.name,
+          image: item.image || null,
           quantity: item.quantity,
           price: parseFloat(item.price),
           total: parseFloat(item.total || (item.price * item.quantity))
@@ -379,10 +463,10 @@ class OrderController {
         createdAt: order.created_at,
         updatedAt: order.updated_at,
         // Dates de suivi (FonctionnalitéMoyenne#1782)
-        canceledAt: order.canceled_at,
-        confirmedAt: order.confirmed_at,
-        shippedAt: order.shipped_at,
-        deliveredAt: order.delivered_at
+        canceledAt: order.canceledAt,
+        confirmedAt: order.confirmedAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt
       };
 
       // Log des détails pour debugging
@@ -581,7 +665,7 @@ class OrderController {
         },
         attributes: [
           'orderId', 'status', 'trackingNumber',
-          'created_at', 'updated_at', 'canceled_at', 'confirmed_at', 'shipped_at', 'delivered_at'
+          'created_at', 'updated_at', 'canceledAt', 'confirmedAt', 'shippedAt', 'deliveredAt'
         ]
       });
 
@@ -597,10 +681,10 @@ class OrderController {
         orderId: order.orderId,
         status: order.status,
         createdAt: order.created_at,
-        confirmedAt: order.confirmed_at || null,
-        shippedAt: order.shipped_at || null,
-        deliveredAt: order.delivered_at || null,
-        canceledAt: order.canceled_at || null, // Ajout du support d'annulation
+        confirmedAt: order.confirmedAt || null,
+        shippedAt: order.shippedAt || null,
+        deliveredAt: order.deliveredAt || null,
+        canceledAt: order.canceledAt || null, // Ajout du support d'annulation
         trackingNumber: order.trackingNumber || null
       };
 
@@ -611,9 +695,9 @@ class OrderController {
         currentStep: order.status,
         timeline: [
           { step: 'pending', completed: true, date: order.created_at },
-          { step: 'confirmed', completed: !!order.confirmed_at, date: order.confirmed_at },
-          { step: 'shipped', completed: !!order.shipped_at, date: order.shipped_at },
-          { step: 'delivered', completed: !!order.delivered_at, date: order.delivered_at }
+          { step: 'confirmed', completed: !!order.confirmedAt, date: order.confirmedAt },
+          { step: 'shipped', completed: !!order.shippedAt, date: order.shippedAt },
+          { step: 'delivered', completed: !!order.deliveredAt, date: order.deliveredAt }
         ]
       };
 
@@ -621,7 +705,7 @@ class OrderController {
       if (order.status === 'canceled') {
         progressInfo.timeline = [
           { step: 'pending', completed: true, date: order.created_at },
-          { step: 'canceled', completed: true, date: order.canceled_at }
+          { step: 'canceled', completed: true, date: order.canceledAt }
         ];
       }
 

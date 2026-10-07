@@ -1,13 +1,46 @@
-import { SlidersHorizontal, Search, ArrowUpDown } from 'lucide-react';
-import { categories } from './mocks/data';
+import { SlidersHorizontal, Search, ArrowUpDown, Sparkles, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+
+// Normalise les champs pour correspondre à l'affichage attendu
+// (image -> images, rating -> ratingAvg, category objet -> string).
+// Utilisé pour /api/products et pour les résultats de /search/nlp.
+function normalizeProduct(product) {
+    const category =
+        typeof product.category === "string"
+            ? product.category
+            : product.category?.name ?? "";
+
+    const images = product.images ?? product.image ?? [];
+
+    return {
+        ...product,
+        image: Array.isArray(images) ? images[0] : images,
+        rating: product.rating ?? product.ratingAvg ?? 0,
+        category,
+    };
+}
+
+// Texte du bandeau décrivant les filtres extraits par la recherche NLP
+function describeNlpFilters(filters) {
+    if (!filters) return [];
+    const parts = [];
+    if (filters.category) parts.push(`Catégorie : ${filters.category}`);
+    if (filters.min_price !== null && filters.min_price !== undefined) parts.push(`Prix min : ${filters.min_price} €`);
+    if (filters.max_price !== null && filters.max_price !== undefined) parts.push(`Prix max : ${filters.max_price} €`);
+    if (Array.isArray(filters.tags) && filters.tags.length > 0) parts.push(`Mots-clés : ${filters.tags.join(", ")}`);
+    return parts;
+}
 
 function Products() {
 
     const [page, setPage] = useState(1);
-    const [category, setCategory] = useState("Tout");
-    const [priceMax, setPriceMax] = useState(200);
+    // ?category=... : lien depuis les catégories de l'accueil
+    const [searchParams] = useSearchParams();
+    const categoryParam = searchParams.get("category");
+    const [category, setCategory] = useState(categoryParam || "Tout");
+    const [categories, setCategories] = useState([{ id: "all", name: "Tout" }]);
+    const [priceMax, setPriceMax] = useState(null); // null : pas de limite de prix
     const [rating, setRating] = useState(0);
 
     const [products, setProducts] = useState([]);
@@ -19,45 +52,122 @@ function Products() {
 
     const lastProduct=productsPerPage*currentPage;
     const firstProduct=lastProduct-productsPerPage;
-useEffect(() => {
+    const [productsError, setProductsError] = useState(null);
+
+    // Le backend pagine (10 par défaut, 50 maximum) alors que les filtres et la
+    // pagination de cette page travaillent sur tout le catalogue : on charge
+    // toutes les pages de 50.
+    useEffect(() => {
+        let cancelled = false;
+        const PAGE_SIZE = 50;
+        const MAX_PAGES = 20; // garde-fou contre une réponse incohérente
+
         async function loadProducts() {
-            const response = await fetch("/api/products");
-            const data = await response.json();
+            try {
+                const all = [];
+                for (let page = 1; page <= MAX_PAGES; page++) {
+                    const response = await fetch(`/api/products?limit=${PAGE_SIZE}&page=${page}`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
 
-            // La réponse peut venir soit du mock MSW (tableau direct),
-            // soit du backend réel ({ data: { products: [...] } }).
-            const rawList = Array.isArray(data)
-                ? data
-                : data?.data?.products ?? data?.products ?? [];
-
-            // Normalise les champs pour correspondre à l'affichage attendu
-            // (image -> images, rating -> ratingAvg, category objet -> string).
-            const normalized = rawList.map((product) => {
-                const category =
-                    typeof product.category === "string"
-                        ? product.category
-                        : product.category?.name ?? "";
-
-                const images = product.images ?? product.image ?? [];
-
-                return {
-                    ...product,
-                    image: Array.isArray(images) ? images[0] : images,
-                    rating: product.rating ?? product.ratingAvg ?? 0,
-                    category,
-                };
-            });
-
-            setProducts(normalized);
+                    // La réponse peut venir soit du mock MSW (tableau direct),
+                    // soit du backend réel ({ data: { products: [...], pagination } }).
+                    if (Array.isArray(data)) {
+                        all.push(...data);
+                        break;
+                    }
+                    all.push(...(data?.data?.products ?? data?.products ?? []));
+                    if (!data?.data?.pagination?.hasNext) break;
+                }
+                if (!cancelled) {
+                    setProducts(all.map(normalizeProduct));
+                    setProductsError(null);
+                }
+            } catch (err) {
+                console.error("Erreur chargement produits:", err);
+                if (!cancelled) setProductsError("Impossible de charger les produits. Veuillez réessayer.");
+            }
         }
 
         loadProducts();
+        return () => { cancelled = true; };
     }, []);
+
+    // Le lien peut changer sans remonter la page (ex. retour arrière) : on suit l'URL.
+    useEffect(() => {
+        setCategory(categoryParam || "Tout");
+    }, [categoryParam]);
+
+    // Catégories réelles (GET /api/categories). En cas d'échec, seul « Tout » reste.
+    useEffect(() => {
+        let cancelled = false;
+        async function loadCategories() {
+            try {
+                const response = await fetch("/api/categories");
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                // Mock MSW : tableau direct (avec « Tout ») ; backend : { data: { categories } }
+                const list = Array.isArray(data) ? data : data?.data?.categories ?? [];
+                if (!cancelled) {
+                    setCategories([
+                        { id: "all", name: "Tout" },
+                        ...list.filter((cat) => cat.name !== "Tout"),
+                    ]);
+                }
+            } catch (err) {
+                console.error("Erreur chargement catégories:", err);
+            }
+        }
+        loadCategories();
+        return () => { cancelled = true; };
+    }, []);
+
+    // Recherche en langage naturel (POST /search/nlp).
+    // nlpResult === null : on affiche le catalogue complet.
+    const [nlpQuery, setNlpQuery] = useState("");
+    const [nlpResult, setNlpResult] = useState(null);
+    const [nlpLoading, setNlpLoading] = useState(false);
+    const [nlpError, setNlpError] = useState(null);
+
+    const handleNlpSearch = async (e) => {
+        e.preventDefault();
+        const query = nlpQuery.trim();
+        if (!query) return;
+
+        setNlpLoading(true);
+        setNlpError(null);
+        try {
+            const response = await fetch("/search/nlp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data?.message || "Erreur lors de la recherche");
+            }
+            setNlpResult({
+                ...data.data,
+                products: (data.data?.products ?? []).map(normalizeProduct),
+            });
+        } catch (err) {
+            console.error("search/nlp error:", err);
+            setNlpError("La recherche intelligente a échoué. Veuillez réessayer.");
+        } finally {
+            setNlpLoading(false);
+        }
+    };
+
+    const clearNlpSearch = () => {
+        setNlpQuery("");
+        setNlpResult(null);
+        setNlpError(null);
+    };
 
 
     useEffect(()=>{
           setCurrentPage(1);
-    },[category,rating,search,sort,priceMax])
+    },[category,rating,search,sort,priceMax,nlpResult])
     
 
     const ratings = [
@@ -70,7 +180,7 @@ useEffect(() => {
     function reset() {
         setPage(1);
         setCategory("Tout");
-        setPriceMax(200);
+        setPriceMax(null);
         setRating(0);
     }
 
@@ -88,9 +198,14 @@ useEffect(() => {
 
  
    
-const filteredProducts = products
+// Borne haute du curseur de prix : prix du produit le plus cher affiché (catalogue ou recherche)
+const sliderMax = Math.ceil(
+  Math.max(0, ...products.map((p) => Number(p.price) || 0), ...(nlpResult?.products ?? []).map((p) => Number(p.price) || 0))
+);
+
+const filteredProducts = (nlpResult ? nlpResult.products : products)
   .filter((product) => {
-    if (product.price >= priceMax) return false;
+    if (priceMax !== null && Number(product.price) > priceMax) return false;
     if (product.rating < rating) return false;
     if (!product.name.toLowerCase().includes(search.toLowerCase()))
       return false;
@@ -178,21 +293,21 @@ const filteredProducts = products
                 <div className="mt-6">
 
                     <h3 className="text-sm text-gray-600 font-semibold">
-                        Prix max — {priceMax} €
+                        Prix max — {priceMax ?? sliderMax} €
                     </h3>
 
                     <input
                         type="range"
                         min={0}
-                        max={200}
-                        value={priceMax}
+                        max={sliderMax}
+                        value={priceMax ?? sliderMax}
                         onChange={changePrice}
                         className="w-full accent-indigo-500 h-1 mt-2"
                     />
 
                     <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                         <span>0 €</span>
-                        <span>200 €</span>
+                        <span>{sliderMax} €</span>
                     </div>
 
                 </div>
@@ -243,7 +358,7 @@ const filteredProducts = products
 
 
             <div className="flex-1">
-                <div className="flex gap-4 mb-8">
+                <div className="flex gap-4 mb-4">
 
                     <div className="relative flex-1">
 
@@ -280,6 +395,73 @@ const filteredProducts = products
                     </div>
 
                 </div>
+
+                {/* Recherche en langage naturel */}
+
+                <form onSubmit={handleNlpSearch} className="flex gap-4 mb-4">
+
+                    <div className="relative flex-1">
+
+                        <Sparkles
+                            size={14}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-400"
+                        />
+
+                        <input
+                            type="text"
+                            placeholder='Recherche intelligente : "un livre de programmation à moins de 45 €"'
+                            className="w-full border border-gray-200 rounded-lg py-2.5 pl-10 pr-4 text-sm outline-none focus:border-indigo-500"
+                            onChange={(e) => setNlpQuery(e.target.value)}
+                            value={nlpQuery}
+                        />
+
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={nlpLoading || !nlpQuery.trim()}
+                        className="text-sm bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-indigo-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {nlpLoading ? "Recherche..." : "Rechercher"}
+                    </button>
+
+                </form>
+
+                {nlpError && (
+                    <p className="text-xs text-red-500 mb-4">{nlpError}</p>
+                )}
+
+                {productsError && (
+                    <p className="text-sm text-red-500 mb-4">{productsError}</p>
+                )}
+
+                {nlpResult && (
+                    <div className="flex items-start gap-3 bg-indigo-50 text-indigo-700 rounded-lg px-4 py-3 mb-8 text-xs">
+                        <div className="flex-1">
+                            <p className="font-medium">
+                                {nlpResult.count} résultat{nlpResult.count > 1 ? "s" : ""} pour « {nlpResult.query} »
+                            </p>
+                            {describeNlpFilters(nlpResult.filtersUsed).length > 0 && (
+                                <p className="mt-1">{describeNlpFilters(nlpResult.filtersUsed).join(" · ")}</p>
+                            )}
+                            {nlpResult.categoryRelaxed && (
+                                <p className="mt-1 text-indigo-500">Aucun produit dans cette catégorie, résultats élargis à tout le catalogue.</p>
+                            )}
+                            {nlpResult.source === "fallback" && (
+                                <p className="mt-1 text-indigo-500">Recherche intelligente indisponible, résultats de la recherche classique.</p>
+                            )}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={clearNlpSearch}
+                            className="flex items-center gap-1 text-indigo-500 hover:text-indigo-600 font-medium"
+                        >
+                            <X size={12} /> Effacer
+                        </button>
+                    </div>
+                )}
+
+                {!nlpResult && <div className="mb-4" />}
 
                 {/* filtre des produoits */}
 

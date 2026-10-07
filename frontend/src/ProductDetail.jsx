@@ -3,6 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { ShoppingCart, Heart, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import useCartStore from "./store/cartStore";
+import useAuth from "./store/useAuth";
+import { apiFetch } from "./lib/api";
+import ReviewForm from "./components/ReviewForm";
 
 function ProductDetail() {
     const addToCart = useCartStore((state) => state.addProductToCart);
@@ -22,6 +25,7 @@ function ProductDetail() {
     const [reviews, setReviews] = useState([]);
     const [loadingReviews, setLoadingReviews] = useState(true);
     const [errorReviews, setErrorReviews] = useState(null);
+    const [showReviewForm, setShowReviewForm] = useState(false);
 
     // Produits similaires
     const [produitSimilaire, setProduitSimilaire] = useState([]);
@@ -122,6 +126,27 @@ function ProductDetail() {
         };
     }, [id]);
 
+    // Enregistre la consultation (POST /events/view) pour alimenter "Vous aimerez aussi".
+    // Utilisateurs connectés uniquement ; une seule fois par produit (le ref évite le
+    // double envoi du double rendu de React StrictMode en développement).
+    const isAuthenticated = useAuth((state) => state.isAuthenticated);
+    const currentUser = useAuth((state) => state.user);
+    const loggedViewRef = useRef(null);
+    useEffect(() => {
+        if (!isAuthenticated || !product?.id || loggedViewRef.current === product.id) return;
+        loggedViewRef.current = product.id;
+
+        apiFetch("/events/view", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_id: product.id }),
+        })
+            .then((response) => {
+                if (!response.ok) console.error("events/view error: HTTP", response.status);
+            })
+            .catch((err) => console.error("events/view error:", err));
+    }, [isAuthenticated, product?.id]);
+
     // Récupère les avis via GET /api/products/:id/reviews?limit=50 (indépendant du produit)
     useEffect(() => {
         if (!id) return;
@@ -130,6 +155,7 @@ function ProductDetail() {
         setLoadingReviews(true);
         setErrorReviews(null);
         setReviews([]);
+        setShowReviewForm(false);
 
         async function loadReviews() {
             try {
@@ -229,6 +255,13 @@ function ProductDetail() {
         ? reviews
         : reviews.filter((r) => Math.round(Number(r.rating) || 0) === ratingFilter);
     const aiSummary = getAiSummary(reviews);
+    // Le backend refuse un 2e avis (409) ; on masque le bouton si le sien est déjà dans la liste.
+    const hasReviewed = !!currentUser?.id && reviews.some((r) => r.user?.id === currentUser.id);
+
+    function handleReviewCreated(review) {
+        setShowReviewForm(false);
+        if (review) setReviews((prev) => [review, ...prev]);
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-2 py-8">
@@ -296,7 +329,7 @@ function ProductDetail() {
                             </h1>
                             <div className="flex items-center gap-2 mt-5">
                                 <span className="text-yellow-400 text-lg">
-                                    ⭐⭐⭐⭐⭐
+                                    {"⭐".repeat(Math.round(Number(product.ratingAvg) || 0))}
                                 </span>
                                 <span className="text-gray-600">
                                     {Number(product.ratingAvg) || 0}
@@ -352,15 +385,40 @@ function ProductDetail() {
             </div>
 
             <div className="mt-9">
-                <h2 className="text-2xl font-bold text-gray-900 mt-10">
-                    Avis clients
-                </h2>
+                <div className="flex items-center justify-between mt-10">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                        Avis clients
+                    </h2>
+                    {!isAuthenticated ? (
+                        <Link to="/login" className="text-sm text-indigo-600 hover:text-indigo-700">
+                            Connectez-vous pour laisser un avis
+                        </Link>
+                    ) : hasReviewed ? (
+                        <span className="text-sm text-gray-500">Vous avez déjà donné votre avis</span>
+                    ) : !showReviewForm && (
+                        <button
+                            type="button"
+                            onClick={() => setShowReviewForm(true)}
+                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700"
+                        >
+                            Rédiger un avis
+                        </button>
+                    )}
+                </div>
+
+                {showReviewForm && isAuthenticated && !hasReviewed && (
+                    <ReviewForm
+                        productId={product.id}
+                        onCreated={handleReviewCreated}
+                        onCancel={() => setShowReviewForm(false)}
+                    />
+                )}
 
                 {/* Note globale + répartition par étoile, cliquable pour filtrer */}
                 <div className="flex flex-col md:flex-row gap-8 mt-6 bg-white border border-gray-200 rounded-2xl p-6">
                     <div className="flex flex-col items-center justify-center md:w-48 md:border-r md:border-gray-100">
                         <span className="text-5xl font-bold text-gray-900">{avgRating}</span>
-                        <span className="text-yellow-400 text-lg mt-1">⭐⭐⭐⭐⭐</span>
+                        <span className="text-yellow-400 text-lg mt-1">{"⭐".repeat(Math.round(Number(avgRating)))}</span>
                         <span className="text-gray-500 text-sm mt-1">{totalReviews} avis</span>
                     </div>
 

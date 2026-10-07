@@ -318,6 +318,7 @@ class AdminOrderController {
       items: order.items?.map(item => ({
         productId: item.productId,
         name: item.name,
+        image: item.image || null,
         quantity: item.quantity,
         price: parseFloat(item.price),
         total: parseFloat(item.total || (item.price * item.quantity))

@@ -17,6 +17,19 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
+      // Routes IA montées hors de /api côté backend (src/app.js)
+      '/search': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/recommendations': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
+      '/events': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
 })
