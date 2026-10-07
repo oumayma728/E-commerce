@@ -61,13 +61,14 @@ function ProductDetail() {
         setBgPos({ x, y });
     };
 
+    // Quantité entre 1 et le stock disponible
+    const stock = Number(product?.stock) || 0;
+    const outOfStock = stock <= 0;
     const handleQuantityPlus = () => {
-        setQuantity((q) => q + 1);
+        setQuantity((q) => Math.min(q + 1, Math.max(stock, 1)));
     };
     const handleQuantityMinus = () => {
-        if (quantity > 0) {
-            setQuantity((q) => q - 1);
-        }
+        setQuantity((q) => Math.max(q - 1, 1));
     };
 
     const handleImage = (index) => {
@@ -345,32 +346,38 @@ function ProductDetail() {
                                 {product.description}
                             </p>
                             <div className="flex items-center gap-2 mt-7">
-                                <CheckCircle2
-                                    size={18}
-                                    className="text-green-600"
-                                />
-                                <p className="text-green-600 font-medium">
-                                    En stock ({product.stock} disponibles)
-                                </p>
+                                {outOfStock ? (
+                                    <p className="text-red-600 font-medium">Rupture de stock</p>
+                                ) : (
+                                    <>
+                                        <CheckCircle2
+                                            size={18}
+                                            className="text-green-600"
+                                        />
+                                        <p className="text-green-600 font-medium">
+                                            En stock ({product.stock} disponibles)
+                                        </p>
+                                    </>
+                                )}
                             </div>
 
                             {/* Buttons */}
                             <div className="flex gap-4 mt-8">
                                 <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                                    <button className="px-5 py-4 hover:bg-gray-100" onClick={handleQuantityMinus}>
+                                    <button className="px-5 py-4 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" onClick={handleQuantityMinus} disabled={quantity <= 1}>
                                         -
                                     </button>
                                     <span className="px-5 font-medium">
                                         {quantity}
                                     </span>
-                                    <button className="px-5 py-4 hover:bg-gray-100" onClick={handleQuantityPlus}>
+                                    <button className="px-5 py-4 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" onClick={handleQuantityPlus} disabled={outOfStock || quantity >= stock}>
                                         +
                                     </button>
                                 </div>
 
-                                <button className="flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-indigo-600 transition" onClick={() => addToCart(product, quantity)}>
+                                <button className="flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-semibold hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900" onClick={() => addToCart(product, quantity)} disabled={outOfStock}>
                                     <ShoppingCart size={18} />
-                                    Ajouter au panier
+                                    {outOfStock ? "Indisponible" : "Ajouter au panier"}
                                 </button>
                                 <button className={`w-14 h-14 border rounded-xl flex items-center justify-center transition
                                         ${

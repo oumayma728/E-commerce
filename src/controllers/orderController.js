@@ -44,7 +44,7 @@ class OrderController {
   static async createOrder(req, res) {
     try {
       const userId = req.user.id;
-      const { shippingAddress, billingAddress, paymentMethod, notes } = req.body;
+      const { shippingAddress, billingAddress, paymentMethod, notes } = req.body || {};
 
       console.log(`📦 Création de commande pour l'utilisateur ${userId}`);
 
@@ -191,8 +191,7 @@ class OrderController {
   static async updateOrderStatus(req, res) {
     try {
       const { orderId } = req.params;
-      const { newStatus } = req.body;
-      const userId = req.user.id;
+      const { newStatus } = req.body || {};
 
       console.log(`🔄 Tentative de mise à jour statut commande ${orderId}: -> ${newStatus}`);
 
@@ -211,12 +210,10 @@ class OrderController {
         });
       }
 
-      // Trouver la commande
+      // Trouver la commande (route réservée aux admins : n'importe quelle commande,
+      // pas seulement celles passées par l'admin connecté)
       const order = await Order.findOne({
-        where: { 
-          orderId: orderId,
-          userId: userId // S'assurer que l'utilisateur possède cette commande
-        }
+        where: { orderId: orderId }
       });
 
       if (!order) {
@@ -550,7 +547,8 @@ class OrderController {
     try {
       const { orderId } = req.params;
       const userId = req.user.id;
-      const { reason } = req.body; // Raison d'annulation optionnelle
+      // Raison d'annulation optionnelle (Express 5 : req.body absent sans corps)
+      const { reason } = req.body || {};
 
       console.log(`🚫 FonctionnalitéMoyenne#1782 - Tentative d'annulation commande ${orderId} par utilisateur ${userId}`);
 
