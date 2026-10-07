@@ -95,7 +95,7 @@ const onSubmit = async (data) => {
               iconTheme: { primary: '#fff', secondary: '#22c55e' },
           });
 
-          navigate('/orders'); // Redirige vers la page /orders
+          navigate(`/order-confirmation/${result.orderId}`); // Page de confirmation de la commande
       } catch (err) {
           console.error('Erreur paiement Stripe:', err);
           toast.error("Erreur réseau lors du paiement", {

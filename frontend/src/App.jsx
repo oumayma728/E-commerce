@@ -11,6 +11,7 @@ import Checkout from './Checkout';
 import Chatbot from './Chatbot';
 import Orders from './Orders';
 import OrderDetail from './OrderDetail';
+import OrderConfirmation from './OrderConfirmation';
 import AdminDashboard from './AdminDashboard';
 import Login from './Login';
 import Register from './Register';
@@ -37,6 +38,7 @@ function App() {
           <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
           <Route path="/order-detail/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+          <Route path="/order-confirmation/:id" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
         </Routes>
         <Chatbot />
